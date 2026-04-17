@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# TypeScript
+*.tsbuildinfo
+
+# Expo env type (auto-generated)
+expo-env.d.ts
+
+# Keystore & certificates
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Native projects (Expo Managed Workflow - can be regenerated)
+android/
+ios/
+
+# Build outputs
+*.apk
+*.aab
+
+# Logs
+*.log
+npm-debug.log*
+
+# Codebuddy
+.codebuddy/
+
+# Misc
+*.tgz
+coverage/

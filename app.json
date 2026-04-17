@@ -1,0 +1,49 @@
+{
+  "name": "cockpit-tools-mobile",
+  "slug": "cockpit-tools-mobile",
+  "version": "1.0.0",
+  "orientation": "portrait",
+  "icon": "./assets/icon.png",
+  "scheme": "cockpittools",
+  "userInterfaceStyle": "dark",
+  "splash": {
+    "image": "./assets/splash-icon.png",
+    "resizeMode": "contain",
+    "backgroundColor": "#0F0E17"
+  },
+  "ios": {
+    "supportsTablet": true,
+    "bundleIdentifier": "com.cockpittools.mobile"
+  },
+  "android": {
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/adaptive-icon.png",
+      "backgroundColor": "#0F0E17"
+    },
+    "package": "com.cockpittools.mobile"
+  },
+  "web": {
+    "bundler": "metro",
+    "output": "static",
+    "favicon": "./assets/favicon.png"
+  },
+  "plugins": [
+    [
+      "expo-router"
+    ],
+    [
+      "expo-secure-store"
+    ],
+    [
+      "expo-task-manager"
+    ],
+    "expo-asset",
+    "expo-font"
+  ],
+  "experiments": {
+    "typedRoutes": true
+  },
+  "extra": {
+    "apiEndpoint": "https://www.codebuddy.cn"
+  }
+}
