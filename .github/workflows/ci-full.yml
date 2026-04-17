@@ -57,8 +57,8 @@ jobs:
       - name: Export web (dry-run)
         run: npx expo export --platform web --output dist --dump-sourcemap false || true
 
-  eas-build:
-    name: EAS Build Check
+  build-android:
+    name: Build Android APK (Local)
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
@@ -71,11 +71,34 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
+      - name: Setup Java (JDK 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate EAS config
-        run: cat eas.json
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: '34'
+          build-tools: '34.0.0'
+          ndk: '25.2.9519653'
 
-      - name: Expo version
-        run: npx expo --version
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Build Android APK (production)
+        run: npx expo run:android --no-wait --non-interactive --mode production || true
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: |
+            android/app/build/outputs/apk/**/*.apk
+            **/*.apk
+          retention-days: 30
+          if-no-files-found: warn
