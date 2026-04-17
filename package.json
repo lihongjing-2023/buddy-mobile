@@ -17,7 +17,7 @@
     "check-deps": "npx expo install --check"
   },
   "dependencies": {
-    "@expo/vector-icons": "~14.0.4",
+    "@expo/vector-icons": "~15.1.1",
     "@react-native-async-storage/async-storage": "1.23.1",
     "axios": "^1.7.0",
     "expo": "~52.0.0",
