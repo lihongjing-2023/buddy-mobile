@@ -111,9 +111,10 @@ export class QuotaService {
     const uid = this.getUid?.() || account.uid;
     const domain = this.getDomain?.() || account.domain;
     const enterpriseId = account.enterprise_id;
+    const tenantId = account.tenant_id;
 
     return {
-      ...buildQuotaHeaders(uid, domain, enterpriseId, enterpriseId),
+      ...buildQuotaHeaders(uid, domain, enterpriseId, tenantId),
       Authorization: `Bearer ${account.access_token}`,
       'Content-Type': 'application/json',
     };

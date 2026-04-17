@@ -5,7 +5,8 @@
  * 刷新前从 SecureStore 获取最新 token，避免内存中的 token 过期
  */
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
+import axios from 'axios';
 import { useAccountStore } from '@/modules/account/account-store';
 import { tokenStorage } from '@/services/storage';
 import { AccountService } from '@/modules/account/account-service';
@@ -19,6 +20,16 @@ import type { WorkbuddyAccount } from '@/modules/core/types';
  */
 export function useRefresh() {
   const { updateAccount, setRefreshing, setError } = useAccountStore();
+  
+  // 使用 ref 缓存 AccountService 实例，避免重复创建
+  const serviceRef = useRef<AccountService | null>(null);
+  if (!serviceRef.current) {
+    serviceRef.current = new AccountService(
+      axios,
+      () => undefined,
+      () => undefined
+    );
+  }
 
   const refreshAccount = useCallback(
     async (account: WorkbuddyAccount) => {
@@ -37,13 +48,7 @@ export function useRefresh() {
           refresh_token: secureRt || account.refresh_token,
         };
 
-        const service = new AccountService(
-          (await import('axios')).default,
-          () => freshAccount.uid,
-          () => freshAccount.domain
-        );
-
-        const { updatedAccount, quotaRaw } = await service.refreshAccount(freshAccount);
+        const { updatedAccount, quotaRaw } = await serviceRef.current!.refreshAccount(freshAccount);
 
         // 配额刷新完成后，并行获取签到状态（失败不影响主流程）
         const checkinStatusPromise = CheckinService.fetchCheckinStatus(

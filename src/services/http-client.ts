@@ -148,6 +148,6 @@ export function buildQuotaHeaders(
   if (userId) headers['X-User-Id'] = userId;
   if (domain) headers['X-Domain'] = domain;
   if (enterpriseId) headers['X-Enterprise-Id'] = enterpriseId;
-  if (tenantId) headers['X-Tenant-Id'] = tenantId || '';
+  if (tenantId) headers['X-Tenant-Id'] = tenantId;
   return headers;
 }

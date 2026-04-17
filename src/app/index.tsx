@@ -48,7 +48,6 @@ export default function HomePage() {
     setLastBatchResult,
   } = useCheckinStore();
   const { refreshAccount } = useRefresh();
-  useAutoRefresh();
 
   // 签到统计
   const checkedCount = accounts.filter(

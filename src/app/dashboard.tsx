@@ -3,7 +3,7 @@
  * 总览额度卡片 + 历史趋势折线图
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -53,15 +53,15 @@ export default function DashboardPage() {
   }, [loadHistory]);
 
   // 按时间范围过滤
-  const filteredHistory = (() => {
+  const filteredHistory = useMemo(() => {
     const option = TIME_RANGE_OPTIONS.find((o) => o.value === timeRange);
     if (!option) return history;
     const cutoff = new Date(Date.now() - option.hours * 60 * 60 * 1000).toISOString();
     return history.filter((e) => e.timestamp >= cutoff);
-  })();
+  }, [history, timeRange]);
 
   // 计算当前汇总数据
-  const summary = (() => {
+  const summary = useMemo(() => {
     let grandTotal = 0;
     let grandUsed = 0;
     let grandRemain = 0;
@@ -83,10 +83,10 @@ export default function DashboardPage() {
     const remainPercent = grandTotal > 0 ? (grandRemain / grandTotal) * 100 : 0;
 
     return { grandTotal, grandUsed, grandRemain, usedPercent, remainPercent };
-  })();
+  }, [accounts]);
 
   // 构建折线图数据
-  const chartData = (() => {
+  const chartData = useMemo(() => {
     if (filteredHistory.length === 0) return { lines: [], yMax: 0 };
 
     const plotWidth = 1; // 归一化到 0~1 之间
@@ -123,7 +123,7 @@ export default function DashboardPage() {
       ],
       yMax,
     };
-  })();
+  }, [filteredHistory]);
 
   /** 手动刷新 */
   const onRefresh = useCallback(async () => {

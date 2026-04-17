@@ -27,7 +27,8 @@ export function parseImportData(raw: unknown): WorkbuddyAccount[] {
     const hasToken = !!(
       rec.access_token ||
       rec.accessToken ||
-      rec.access_token
+      rec.refresh_token ||
+      rec.refreshToken
     );
     if (hasToken) {
       try {

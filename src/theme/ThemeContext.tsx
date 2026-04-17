@@ -33,27 +33,37 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // 从 AsyncStorage 恢复用户选择
   useEffect(() => {
-    AsyncStorage.getItem(THEME_KEY).then((saved) => {
-      if (saved === 'light' || saved === 'dark') {
-        setModeState(saved);
-      }
-      setLoaded(true);
-    });
+    AsyncStorage.getItem(THEME_KEY)
+      .then((saved) => {
+        if (saved === 'light' || saved === 'dark') {
+          setModeState(saved);
+        }
+      })
+      .catch((err) => {
+        console.error('[Theme] Failed to load theme:', err);
+      })
+      .finally(() => {
+        setLoaded(true);
+      });
   }, []);
 
-  const setMode = useCallback((newMode: ThemeMode) => {
+  const setMode = useCallback(async (newMode: ThemeMode) => {
     setModeState(newMode);
-    AsyncStorage.setItem(THEME_KEY, newMode);
+    try {
+      await AsyncStorage.setItem(THEME_KEY, newMode);
+    } catch (err) {
+      console.error('[Theme] Failed to save theme:', err);
+    }
   }, []);
 
   const toggle = useCallback(() => {
-    setMode(mode === 'light' ? 'dark' : 'light');
+    const newMode = mode === 'light' ? 'dark' : 'light';
+    setMode(newMode);
   }, [mode, setMode]);
 
   const colors = themes[mode];
 
-  if (!loaded) return null; // 等待存储加载完成
-
+  // 使用默认主题渲染，避免白屏；加载完成后再应用保存的主题
   return (
     <ThemeContext.Provider value={{ mode, colors, setMode, toggle }}>
       {children}

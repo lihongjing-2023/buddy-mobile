@@ -64,6 +64,9 @@ export function parseWorkbuddyAccount(raw: Record<string, unknown>): WorkbuddyAc
   } else {
     // 兜底：根据 email/uid/access_token 生成唯一 ID
     const identitySeed = email || uid || access_token;
+    if (!identitySeed) {
+      throw new Error('Cannot generate account ID: missing email, uid and access_token');
+    }
     id = `workbuddy_${identitySeed.toLowerCase()}`;
   }
 
@@ -289,7 +292,7 @@ export function parseQuotaRawData(
 // ==================== 内部归一化 ====================
 
 /** 将 PascalCase 资源项转换为 snake_case（与PC端 extractResourceAccounts 对齐） */
-function normalizeUserResourceItem(raw: Record<string, unknown>): UserResourceItem {
+export function normalizeUserResourceItem(raw: Record<string, unknown>): UserResourceItem {
   const numVal = (v: unknown): number | undefined => {
     if (typeof v === 'number' && Number.isFinite(v)) return v;
     if (typeof v === 'string') {

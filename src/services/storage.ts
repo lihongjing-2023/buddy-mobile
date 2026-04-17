@@ -107,11 +107,16 @@ export const settingsStorage = {
   },
 
   async save(settings: Partial<AppSettings>): Promise<void> {
-    const current = await this.get();
-    await AsyncStorage.setItem(
-      KEYS.SETTINGS,
-      JSON.stringify({ ...current, ...settings })
-    );
+    try {
+      const current = await this.get();
+      await AsyncStorage.setItem(
+        KEYS.SETTINGS,
+        JSON.stringify({ ...current, ...settings })
+      );
+    } catch (err) {
+      console.error('[settingsStorage] save failed:', err);
+      throw err; // 向上抛出，让调用者知道保存失败
+    }
   },
 };
 

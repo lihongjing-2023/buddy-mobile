@@ -91,6 +91,12 @@ export function useAutoRefresh() {
     let cancelled = false;
 
     const setupTimer = async () => {
+      // 清除旧定时器
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
       const settings = await settingsStorage.get();
       const intervalMs = settings.autoRefreshIntervalMinutes * 60 * 1000;
 
@@ -99,7 +105,7 @@ export function useAutoRefresh() {
       if (cancelled) return;
 
       timerRef.current = setInterval(() => {
-        if (accounts.length > 0) {
+        if (!cancelled && useAccountStore.getState().accounts.length > 0) {
           doAutoRefresh();
         }
       }, intervalMs);

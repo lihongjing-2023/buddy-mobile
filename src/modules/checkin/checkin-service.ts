@@ -55,7 +55,9 @@ export class CheckinService {
     if (account.uid) headers['X-User-Id'] = account.uid;
     if (account.enterprise_id) {
       headers['X-Enterprise-Id'] = account.enterprise_id;
-      headers['X-Tenant-Id'] = account.enterprise_id;
+    }
+    if (account.tenant_id) {
+      headers['X-Tenant-Id'] = account.tenant_id;
     }
 
     try {
@@ -129,7 +131,8 @@ export class CheckinService {
         )
       );
 
-      for (const br of batchResults) {
+      for (let j = 0; j < batchResults.length; j++) {
+        const br = batchResults[j];
         completed++;
         onProgress?.(completed, accounts.length);
 
@@ -137,8 +140,8 @@ export class CheckinService {
           results.push(br.value);
         } else {
           results.push({
-            accountId: batch[results.length]?.id || 'unknown',
-            email: batch[results.length]?.email || 'unknown',
+            accountId: batch[j]?.id || 'unknown',
+            email: batch[j]?.email || 'unknown',
             success: false,
             message: `异常: ${br.reason}`,
           });

@@ -375,6 +375,9 @@ export function getCategoryIcon(key: QuotaCategory): string {
 
 /** 格式化大数字（添加千分位） */
 export function formatNumber(num: number): string {
+  // 处理 NaN 和 Infinity
+  if (!Number.isFinite(num)) return '0';
+  
   if (num >= 1_000_000) {
     return `${(num / 1_000_000).toFixed(1)}M`;
   }

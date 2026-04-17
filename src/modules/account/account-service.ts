@@ -18,9 +18,9 @@ import type {
   PaymentTypeResponse,
   UserResourceResponse,
   UserResourceQuery,
-  UserResourceItem,
 } from '@/modules/core/types';
 import { buildQuotaHeaders } from '@/services/http-client';
+import { normalizeUserResourceItem } from '@/modules/core/parser';
 
 // ==================== 账号服务类 ====================
 
@@ -93,7 +93,8 @@ export class AccountService {
     const uid = this.getUid?.() || account.uid;
     const domain = this.getDomain?.() || account.domain;
     const enterpriseId = account.enterprise_id;
-    const headers = buildQuotaHeaders(uid, domain, enterpriseId, enterpriseId);
+    const tenantId = account.tenant_id;
+    const headers = buildQuotaHeaders(uid, domain, enterpriseId, tenantId);
     const authHeader = {
       ...headers,
       Authorization: `Bearer ${account.access_token}`,
@@ -274,55 +275,6 @@ function normalizeUserResourceResponse(raw: unknown): UserResourceResponse {
     total_count: items.length,
     page_number: 1,
     page_size: 100,
-  };
-}
-
-/** 将 PascalCase 资源项转换为 snake_case */
-function normalizeUserResourceItem(raw: Record<string, unknown>): UserResourceItem {
-  const numVal = (v: unknown): number | undefined => {
-    if (typeof v === 'number' && Number.isFinite(v)) return v;
-    if (typeof v === 'string') {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : undefined;
-    }
-    return undefined;
-  };
-
-  // 优先使用 *Precise 字段（字符串精确值），再回退到整数字段
-  const preciseNum = (preciseKey: string, intKey: string, fallbackKeys: string[] = []): number | undefined => {
-    // Precise 字段是字符串格式的精确数值，优先使用
-    const preciseVal = numVal(raw[preciseKey]);
-    if (preciseVal !== undefined) return preciseVal;
-    // 回退到整数字段
-    const intVal = numVal(raw[intKey]);
-    if (intVal !== undefined) return intVal;
-    // 最终回退
-    for (const key of fallbackKeys) {
-      const v = numVal(raw[key]);
-      if (v !== undefined) return v;
-    }
-    return undefined;
-  };
-
-  return {
-    id: (raw.Id ?? raw.id) as string | undefined,
-    // ProductCode 是产品代码 (如 "p_tcaca")，PackageCode 是套餐代码 (如 "TCACA_code_008_xxx")
-    product_code: (raw.ProductCode ?? raw.product_code) as string | undefined,
-    package_code: (raw.PackageCode ?? raw.package_code) as string | undefined,
-    package_name: (raw.PackageName ?? raw.package_name) as string | undefined,
-    status: numVal(raw.Status ?? raw.status),
-    total_amount: preciseNum('CapacitySizePrecise', 'CapacitySize', ['total_amount', 'TotalAmount']) ?? 0,
-    used_amount: preciseNum('CapacityUsedPrecise', 'CapacityUsed', ['used_amount', 'UsedAmount']) ?? 0,
-    remain_amount: preciseNum('CapacityRemainPrecise', 'CapacityRemain', ['remain_amount', 'RemainAmount']) ?? 0,
-    package_begin_time: numVal(raw.CycleStartTime ?? raw.PackageStartTime ?? raw.package_begin_time),
-    package_end_time: numVal(raw.CycleEndTime ?? raw.PackageEndTime ?? raw.package_end_time),
-    cycle_total_amount: preciseNum('CycleCapacitySizePrecise', 'CycleCapacitySize', ['cycle_total_amount']) ?? 0,
-    cycle_remain_amount: preciseNum('CycleCapacityRemainPrecise', 'CycleCapacityRemain', ['cycle_remain_amount']) ?? 0,
-    cycle_used_amount: preciseNum('CycleCapacityUsedPrecise', 'CycleCapacityUsed', ['cycle_used_amount']) ?? 0,
-    extra_amount: numVal(raw.ExtraCapacity ?? raw.extra_amount),
-    is_default_package: !!(raw.IsDefaultPackage ?? raw.is_default_package),
-    // 保留原始 PascalCase 字段，供 parseCycleTotal/Remain 精确回退
-    _raw: raw,
   };
 }
 
