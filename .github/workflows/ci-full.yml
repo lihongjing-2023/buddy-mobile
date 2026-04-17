@@ -90,15 +90,17 @@ jobs:
       - name: Accept Android licenses
         run: yes | sdkmanager --licenses || true
 
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android
+
       - name: Build Android APK (production)
-        run: npx expo run:android --no-wait --non-interactive --mode production || true
+        working-directory: android
+        run: ./gradlew assembleRelease
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: |
-            android/app/build/outputs/apk/**/*.apk
-            **/*.apk
+          path: android/app/build/outputs/apk/release/*.apk
           retention-days: 30
-          if-no-files-found: warn
+          if-no-files-found: error
