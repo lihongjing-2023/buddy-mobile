@@ -22,7 +22,7 @@
     "axios": "^1.7.0",
     "expo": "~52.0.0",
     "expo-asset": "~11.0.5",
-    "expo-background-fetch": "~13.0.0",
+    "expo-background-fetch": "~55.0.14",
     "expo-clipboard": "~7.0.0",
     "expo-constants": "~17.0.0",
     "expo-document-picker": "~13.0.3",
