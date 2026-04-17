@@ -43,7 +43,7 @@ TaskManager.defineTask(
       const { accountStorage, tokenStorage } = await import('@/services/storage');
       const { parseWorkbuddyAccount } = await import('@/modules/core/parser');
       const rawAccounts = await accountStorage.getAccounts<
-        Array<Record<string, unknown>>
+        Record<string, unknown>
       >();
 
       if (!rawAccounts || rawAccounts.length === 0) {

@@ -18,12 +18,9 @@ import { parseWorkbuddyAccount } from '../core/parser';
 
 // ==================== Token 剥离/补充工具 ====================
 
-/** Token 敏感字段列表 */
-const TOKEN_FIELDS = ['access_token', 'refresh_token'] as const;
-
 /** 从账号对象中剥离 token，返回不含 token 的安全副本 */
 function stripTokens(account: WorkbuddyAccount): Omit<WorkbuddyAccount, 'access_token' | 'refresh_token'> & { access_token?: string; refresh_token?: string } {
-  const { access_token, refresh_token, ...safe } = account;
+  const { access_token: _at, refresh_token: _rt, ...safe } = account;
   // 保留标记位，表示 token 存在于 SecureStore
   return { ...safe, access_token: undefined, refresh_token: undefined };
 }

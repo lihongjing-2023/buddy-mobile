@@ -4,7 +4,7 @@
  */
 
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import Svg, { Polyline, Circle, Line, Text as SvgText, Rect } from 'react-native-svg';
+import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '@/theme';
 
 interface DataPoint {
@@ -50,8 +50,8 @@ export function QuotaLineChart({ lines, yMax, width, height = 200 }: QuotaLineCh
   const yTicks = 5;
   const yStep = yMax / yTicks;
 
-  // 将数据点映射到 SVG 坐标
-  const toSvgX = (dataX: number) => CHART_PADDING.left + dataX;
+  // 将数据点映射到 SVG 坐标（dataX 为 0~1 的归一化值）
+  const toSvgX = (dataX: number) => CHART_PADDING.left + dataX * plotWidth;
   const toSvgY = (dataY: number) => CHART_PADDING.top + plotHeight - (dataY / yMax) * plotHeight;
 
   // 生成网格线和Y轴标签

@@ -3,7 +3,7 @@
  */
 
 import { create } from 'zustand';
-import type { WorkbuddyAccount, CheckinStatusResponse } from '@/modules/core/types';
+import type { CheckinStatusResponse } from '@/modules/core/types';
 
 interface CheckinState {
   /** 各账号的签到状态映射 */
@@ -13,13 +13,13 @@ interface CheckinState {
   /** 批量签到进度 */
   batchProgress: { completed: number; total: number };
   /** 最后一次批量签到结果 */
-  lastBatchResult: Array<{
+  lastBatchResult: {
     accountId: string;
     email: string;
     success: boolean;
     message: string;
     reward?: number;
-  }> | null;
+  }[] | null;
 
   // ====== Actions ======
 

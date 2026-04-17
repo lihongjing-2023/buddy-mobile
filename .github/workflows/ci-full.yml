@@ -30,7 +30,7 @@ jobs:
         run: npm run lint
 
       - name: TypeScript type check
-        run: npm run tsc
+        run: npm run typecheck
 
       - name: Expo Doctor
         run: npx expo-doctor

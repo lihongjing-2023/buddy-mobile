@@ -32,10 +32,10 @@ export default function ImportPage() {
   const [mode, setMode] = useState<ImportMode>('text');
   const [jsonText, setJsonText] = useState('');
   const [isImporting, setIsImporting] = useState(false);
-  const [previewAccounts, setPreviewAccounts] = useState<Array<{
+  const [previewAccounts, setPreviewAccounts] = useState<{
     email: string;
     uid?: string;
-  }> | null>(null);
+  }[] | null>(null);
 
   /** 解析文本输入 */
   const handleParse = useCallback(() => {

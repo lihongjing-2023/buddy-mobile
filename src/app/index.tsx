@@ -42,7 +42,6 @@ export default function HomePage() {
   const { updateAccount } = useAccountStore();
   const {
     isBatchCheckingIn,
-    batchProgress,
     setCheckinStatus,
     setBatchCheckingIn,
     setBatchProgress,

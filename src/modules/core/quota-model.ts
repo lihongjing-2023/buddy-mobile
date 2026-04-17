@@ -3,7 +3,7 @@
  * 与 PC 端 cockpit-tools/src/utils/codebuddy-suite/quota-model.ts 对齐
  */
 
-import type { OfficialQuotaResource, DosageNotifyResponse, WorkbuddyAccount } from './types';
+import type { OfficialQuotaResource, WorkbuddyAccount } from './types';
 import {
   PACKAGE_CODE,
   PACKAGE_DISPLAY_NAMES,
@@ -46,7 +46,7 @@ export function getPlanDetail(
   }
 
   // 前缀匹配：TCACA_code_001_xxx → free, TCACA_code_002_xxx → proMon, 等
-  const prefixMap: Array<{ prefix: string; code: string }> = [
+  const prefixMap: { prefix: string; code: string }[] = [
     { prefix: 'TCACA_code_001', code: PACKAGE_CODE.free },
     { prefix: 'TCACA_code_002', code: PACKAGE_CODE.proMon },
     { prefix: 'TCACA_code_003', code: PACKAGE_CODE.proYear },

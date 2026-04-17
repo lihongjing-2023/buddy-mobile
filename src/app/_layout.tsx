@@ -8,7 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, usePathname } from 'expo-router';
+import { useRouter, usePathname, type Href } from 'expo-router';
 import { ThemeProvider, useTheme } from '@/theme';
 
 const TAB_BAR_HEIGHT = 56; // TabBar 自身高度（不含安全区）
@@ -19,7 +19,7 @@ function TabBar() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
 
-  const tabs = [
+  const tabs: { path: Href; icon: string; activeIcon: string; label: string }[] = [
     { path: '/', icon: 'home-outline', activeIcon: 'home', label: '首页' },
     { path: '/dashboard', icon: 'analytics-outline', activeIcon: 'analytics', label: '仪表盘' },
     { path: '/settings', icon: 'settings-outline', activeIcon: 'settings', label: '设置' },
@@ -31,7 +31,7 @@ function TabBar() {
         const isActive = pathname === tab.path;
         return (
           <TouchableOpacity
-            key={tab.path}
+            key={String(tab.path)}
             style={styles.tabItem}
             onPress={() => router.replace(tab.path)}
           >

@@ -4,7 +4,6 @@
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { themes, type ThemeMode, type ThemeColors } from './colors';
 

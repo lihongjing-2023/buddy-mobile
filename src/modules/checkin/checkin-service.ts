@@ -99,20 +99,20 @@ export class CheckinService {
     accounts: WorkbuddyAccount[],
     onProgress?: (completed: number, total: number) => void,
     concurrency = 5
-  ): Promise<Array<{
+  ): Promise<{
     accountId: string;
     email: string;
     success: boolean;
     message: string;
     reward?: number;
-  }>> {
-    const results: Array<{
+  }[]> {
+    const results: {
       accountId: string;
       email: string;
       success: boolean;
       message: string;
       reward?: number;
-    }> = [];
+    }[] = [];
 
     let completed = 0;
 

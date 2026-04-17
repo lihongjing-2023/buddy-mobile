@@ -18,6 +18,7 @@ import type {
   PaymentTypeResponse,
   UserResourceResponse,
   UserResourceQuery,
+  UserResourceItem,
 } from '@/modules/core/types';
 import { buildQuotaHeaders } from '@/services/http-client';
 

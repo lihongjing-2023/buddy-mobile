@@ -1,0 +1,11 @@
+# ESLint ignore
+node_modules/
+.expo/
+dist/
+android/
+ios/
+cockpit-tools/
+yudao-boot-mini/
+*.config.js
+*.config.ts
+package-lock.json

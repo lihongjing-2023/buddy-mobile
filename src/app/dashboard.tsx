@@ -10,7 +10,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,9 +17,7 @@ import { useAccountStore } from '@/modules/account/account-store';
 import { useRefresh } from '@/hooks/useRefresh';
 import { useAutoRefresh, saveQuotaSnapshot } from '@/hooks/useAutoRefresh';
 import { quotaHistoryStorage, type QuotaHistoryEntry } from '@/services/quota-history-storage';
-import { settingsStorage } from '@/services/storage';
 import { parseQuotaRawData } from '@/modules/core/parser';
-import { getQuotaCategoryGroups } from '@/modules/core/quota-model';
 import { QuotaLineChart } from '@/components/QuotaLineChart';
 import { useTheme } from '@/theme';
 
@@ -37,7 +34,7 @@ const TIME_RANGE_OPTIONS: { label: string; value: TimeRange; hours: number }[] =
 
 export default function DashboardPage() {
   const { colors } = useTheme();
-  const { accounts, isLoading, setRefreshing, setError } = useAccountStore();
+  const { accounts, setRefreshing, setError } = useAccountStore();
   const { refreshAccount } = useRefresh();
   useAutoRefresh();
 
@@ -103,7 +100,6 @@ export default function DashboardPage() {
     filteredHistory.forEach((entry, idx) => {
       const x = idx * step;
       const date = new Date(entry.timestamp);
-      const label = `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
       // 短标签用于 X 轴
       const shortLabel = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
