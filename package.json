@@ -14,7 +14,8 @@
     "tsc": "tsc --noEmit",
     "lint": "eslint .",
     "doctor": "npx expo-doctor",
-    "check-deps": "npx expo install --check"
+    "check-deps": "npx expo install --check",
+    "ci": "npm run check-deps && npm run lint && npm run tsc && npm run doctor"
   },
   "dependencies": {
     "@expo/vector-icons": "~14.0.4",
