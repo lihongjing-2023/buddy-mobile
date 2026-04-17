@@ -146,11 +146,15 @@ export default function HomePage() {
 
               setLastBatchResult(results);
 
-              const successCount = results.filter((r) => r.success).length;
-              Alert.alert(
-                '批量签到完成',
-                `成功: ${successCount}/${results.length}`
-              );
+              const successCount = results.filter((r) => r.success && !/已签到/.test(r.message)).length;
+              const alreadyCount = results.filter((r) => r.success && /已签到/.test(r.message)).length;
+              const failCount = results.filter((r) => !r.success).length;
+
+              const parts: string[] = [];
+              if (successCount > 0) parts.push(`签到成功 ${successCount}`);
+              if (alreadyCount > 0) parts.push(`已签到 ${alreadyCount}`);
+              if (failCount > 0) parts.push(`失败 ${failCount}`);
+              Alert.alert('批量签到完成', parts.join('，') || `共 ${results.length} 个`);
 
               // 刷新全部状态 + 持久化
               for (const r of results) {

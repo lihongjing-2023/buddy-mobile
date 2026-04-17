@@ -70,20 +70,29 @@ export class CheckinService {
 
       const body = response.data;
 
-      // code != 0 && code != 200 时 daily-checkin 返回 success=false 的业务错误（如已签到）
       if (body.code === 0 || body.code === 200) {
         const data = body.data;
         return {
           success: data.success,
-          message: data.message || '签到成功',
+          message: data.message || (data.success ? '签到成功' : '今日已签到'),
           reward: data.reward || 0,
         };
       }
 
-      // 业务错误码（如已签到）
+      // 业务错误码：部分情况下"已签到"也走此分支，检查 msg 判断
+      const msg = body.msg || '';
+      const alreadyCheckedIn = /已签到|already|checked.?in|重复/i.test(msg);
+      if (alreadyCheckedIn) {
+        return {
+          success: true,
+          message: msg || '今日已签到',
+          reward: 0,
+        };
+      }
+
       return {
         success: false,
-        message: body.msg || `签到失败(code=${body.code})`,
+        message: msg || `签到失败(code=${body.code})`,
       };
     } catch (err) {
       return {

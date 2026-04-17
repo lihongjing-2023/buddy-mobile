@@ -371,6 +371,13 @@ function extractPayload(raw: unknown): Record<string, unknown> {
 /** 归一化 PC 端 dosage 响应为移动端 DosageNotifyResponse */
 function normalizeDosageRaw(raw: unknown): DosageNotifyResponse | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
+
+  // 快速检测：如果已经是归一化格式（含 snake_case 字段），直接返回
+  const rec = raw as Record<string, unknown>;
+  if ('total_amount' in rec || 'used_amount' in rec || 'remain_amount' in rec) {
+    return raw as DosageNotifyResponse;
+  }
+
   const data = extractPayload(raw);
   if (!data || Object.keys(data).length === 0) return undefined;
 
@@ -394,6 +401,13 @@ function normalizeDosageRaw(raw: unknown): DosageNotifyResponse | undefined {
 /** 归一化 PC 端 payment 响应为移动端 PaymentTypeResponse */
 function normalizePaymentRaw(raw: unknown): PaymentTypeResponse | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
+
+  // 快速检测：如果已经是归一化格式（含 snake_case 字段），直接返回
+  const rec = raw as Record<string, unknown>;
+  if ('package_code' in rec || 'pay_type' in rec) {
+    return raw as PaymentTypeResponse;
+  }
+
   const data = extractPayload(raw);
   if (!data || Object.keys(data).length === 0) return undefined;
 
@@ -416,6 +430,16 @@ function normalizeUserResourceRaw(raw: unknown): UserResourceResponse | undefine
   if (!raw || typeof raw !== 'object') return undefined;
 
   const rec = raw as Record<string, unknown>;
+
+  // 快速检测：如果已经是归一化格式（有 items 数组且元素含 package_code），直接返回避免重复归一化
+  const existingItems = rec.items;
+  if (Array.isArray(existingItems) && existingItems.length > 0) {
+    const first = existingItems[0];
+    if (first && typeof first === 'object' && ('package_code' in (first as Record<string, unknown>) || 'packageCode' in (first as Record<string, unknown>))) {
+      // 已经归一化过，无需重复处理
+      return raw as UserResourceResponse;
+    }
+  }
 
   // 尝试从完整 API 响应中提取
   const data = extractPayload(rec);
