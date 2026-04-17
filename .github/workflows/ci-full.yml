@@ -61,6 +61,8 @@ jobs:
     name: Build Android APK (Local)
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -90,6 +92,13 @@ jobs:
       - name: Accept Android licenses
         run: yes | sdkmanager --licenses || true
 
+      - name: Get version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION"
+
       - name: Prebuild Android project
         run: npx expo prebuild --platform android
 
@@ -97,10 +106,41 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease
 
+      - name: Rename APK with version
+        run: |
+          mkdir -p release
+          cp android/app/build/outputs/apk/release/app-release.apk release/app-release-v${{ steps.version.outputs.VERSION }}.apk
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          name: android-apk-v${{ steps.version.outputs.VERSION }}
+          path: release/*.apk
           retention-days: 30
           if-no-files-found: error
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: Release v${{ steps.version.outputs.VERSION }}
+          body: |
+            ## Android APK Release
+            
+            ### 版本信息
+            - 版本号: v${{ steps.version.outputs.VERSION }}
+            - 构建时间: ${{ github.event.head_commit.timestamp }}
+            - 提交: ${{ github.sha }}
+            
+            ### 下载
+            - 下载 `app-release-v${{ steps.version.outputs.VERSION }}.apk` 安装到您的Android设备
+            
+            ### 安装说明
+            1. 下载APK文件
+            2. 在Android设备上允许"安装未知来源应用"
+            3. 安装并运行
+          files: release/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

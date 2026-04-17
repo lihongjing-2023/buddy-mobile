@@ -31,6 +31,9 @@ export interface QuotaHistoryEntry {
 /** 最多保留的历史条目数（约7天，每10分钟一条 = ~1008条，限制500条） */
 const MAX_ENTRIES = 500;
 
+// 简单的异步锁，防止并发追加导致数据丢失
+let appendLock: Promise<void> = Promise.resolve();
+
 export const quotaHistoryStorage = {
   /** 获取所有历史记录 */
   async getAll(): Promise<QuotaHistoryEntry[]> {
@@ -44,17 +47,23 @@ export const quotaHistoryStorage = {
     }
   },
 
-  /** 追加一条历史记录 */
+  /** 追加一条历史记录（带锁，防止并发冲突） */
   async append(entry: QuotaHistoryEntry): Promise<void> {
-    const entries = await this.getAll();
-    entries.push(entry);
+    // 使用锁队列确保串行执行
+    const release = await acquireLock();
+    try {
+      const entries = await this.getAll();
+      entries.push(entry);
 
-    // 超出上限时裁剪（保留最新的）
-    if (entries.length > MAX_ENTRIES) {
-      entries.splice(0, entries.length - MAX_ENTRIES);
+      // 超出上限时裁剪（保留最新的）
+      if (entries.length > MAX_ENTRIES) {
+        entries.splice(0, entries.length - MAX_ENTRIES);
+      }
+
+      await AsyncStorage.setItem(QUOTA_HISTORY_KEY, JSON.stringify(entries));
+    } finally {
+      release();
     }
-
-    await AsyncStorage.setItem(QUOTA_HISTORY_KEY, JSON.stringify(entries));
   },
 
   /** 获取最近 N 条记录 */
@@ -74,3 +83,15 @@ export const quotaHistoryStorage = {
     await AsyncStorage.removeItem(QUOTA_HISTORY_KEY);
   },
 };
+
+/** 获取追加锁 */
+async function acquireLock(): Promise<() => void> {
+  let release: () => void;
+  const newLock = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const prevLock = appendLock;
+  appendLock = prevLock.then(() => newLock);
+  await prevLock;
+  return release!;
+}

@@ -51,7 +51,7 @@ export function useRefresh() {
           updatedAccount.domain,
           updatedAccount.uid,
           updatedAccount.enterprise_id,
-          updatedAccount.enterprise_id
+          updatedAccount.tenant_id
         ).catch(() => null);
 
         const checkinStatus = await checkinStatusPromise;

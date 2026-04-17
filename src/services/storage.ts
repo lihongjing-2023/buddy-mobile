@@ -139,22 +139,36 @@ export const checkinLogStorage = {
   },
 
   async appendLog(entry: CheckinLogEntry): Promise<void> {
-    const allLogsRaw = await AsyncStorage.getItem(KEYS.CHECKIN_LOG);
-    const allLogs: Record<string, CheckinLogEntry[]> = allLogsRaw
-      ? JSON.parse(allLogsRaw)
-      : {};
-    if (!allLogs[entry.date]) allLogs[entry.date] = [];
-    allLogs[entry.date].push(entry);
+    try {
+      const allLogsRaw = await AsyncStorage.getItem(KEYS.CHECKIN_LOG);
+      let allLogs: Record<string, CheckinLogEntry[]> = {};
+      if (allLogsRaw) {
+        try {
+          const parsed = JSON.parse(allLogsRaw);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            allLogs = parsed;
+          }
+        } catch {
+          // 解析失败，使用空对象继续
+          allLogs = {};
+        }
+      }
+      if (!allLogs[entry.date]) allLogs[entry.date] = [];
+      allLogs[entry.date].push(entry);
 
-    // 只保留最近 30 天的日志
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 30);
-    const cutoffStr = cutoffDate.toISOString().split('T')[0];
-    Object.keys(allLogs).forEach((d) => {
-      if (d < cutoffStr) delete allLogs[d];
-    });
+      // 只保留最近 30 天的日志
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 30);
+      const cutoffStr = cutoffDate.toISOString().split('T')[0];
+      Object.keys(allLogs).forEach((d) => {
+        if (d < cutoffStr) delete allLogs[d];
+      });
 
-    await AsyncStorage.setItem(KEYS.CHECKIN_LOG, JSON.stringify(allLogs));
+      await AsyncStorage.setItem(KEYS.CHECKIN_LOG, JSON.stringify(allLogs));
+    } catch (err) {
+      console.error('[checkinLogStorage] appendLog failed:', err);
+      // 静默失败，不影响主流程
+    }
   },
 
   async clearAll(): Promise<void> {

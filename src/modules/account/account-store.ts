@@ -118,7 +118,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
   },
 
   upsertAccounts: async (newAccounts: WorkbuddyAccount[]): Promise<number> => {
-    const current = get().accounts;
+    const current = [...get().accounts]; // 创建新数组，避免直接修改原状态
     let addedCount = 0;
 
     for (const incoming of newAccounts) {
@@ -154,7 +154,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
     const safeAccounts = current.map(stripTokens);
     await accountStorage.setAccounts(safeAccounts);
     await Promise.all(newAccounts.map(persistTokens));
-    set({ accounts: [...current] });
+    set({ accounts: current }); // 已经 spread 过了，直接赋值
 
     return addedCount;
   },

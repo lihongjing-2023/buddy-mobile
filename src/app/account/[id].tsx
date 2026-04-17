@@ -79,7 +79,7 @@ export default function AccountDetailPage() {
           account.domain,
           account.uid,
           account.enterprise_id,
-          account.enterprise_id
+          account.tenant_id
         );
         if (status) {
           await updateAccount(account.id, {

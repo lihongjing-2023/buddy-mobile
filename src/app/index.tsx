@@ -156,12 +156,14 @@ export default function HomePage() {
               // 刷新全部状态 + 持久化
               for (const r of results) {
                 try {
+                  const account = accounts.find((a) => a.id === r.accountId);
+                  if (!account) continue;
                   const status = await CheckinService.fetchCheckinStatus(
-                    accounts.find((a) => a.id === r.accountId)?.access_token || '',
-                    accounts.find((a) => a.id === r.accountId)?.domain,
-                    accounts.find((a) => a.id === r.accountId)?.uid,
-                    accounts.find((a) => a.id === r.accountId)?.enterprise_id,
-                    accounts.find((a) => a.id === r.accountId)?.enterprise_id
+                    account.access_token,
+                    account.domain,
+                    account.uid,
+                    account.enterprise_id,
+                    account.tenant_id
                   );
                   if (status) {
                     setCheckinStatus(r.accountId, status);

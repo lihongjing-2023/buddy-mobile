@@ -72,7 +72,7 @@ TaskManager.defineTask(
             acc.domain,
             acc.uid,
             acc.enterprise_id,
-            acc.enterprise_id
+            acc.tenant_id
           );
 
           if (status && !status.today_checked_in) {

@@ -44,6 +44,7 @@ export interface WorkbuddyAccount extends CodebuddySuiteAccountBase {
   // ===== 企业信息（与 PC 端对齐） =====
   enterprise_id?: string;
   enterprise_name?: string;
+  tenant_id?: string;
 
   // ===== 配额数据 (3路 API 合并) =====
   quota_raw?: QuotaRawData;
