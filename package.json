@@ -24,7 +24,7 @@
     "expo-asset": "~11.0.5",
     "expo-background-fetch": "~13.0.0",
     "expo-clipboard": "~7.0.0",
-    "expo-constants": "~17.0.0",
+    "expo-constants": "~55.0.14",
     "expo-document-picker": "~13.0.3",
     "expo-file-system": "~18.0.0",
     "expo-font": "~13.0.4",
