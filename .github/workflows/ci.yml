@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+
+jobs:
+  lint-and-typecheck:
+    name: 🔍 Lint & TypeScript Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📥 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📚 Install dependencies
+        run: npm ci
+
+      - name: 🔎 Run ESLint
+        run: npm run lint
+
+      - name: 🛠️ TypeScript type check
+        run: npm run tsc
+
+  test:
+    name: 🧪 Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📥 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📚 Install dependencies
+        run: npm ci
+
+      - name: 🧪 Run tests (if any)
+        run: |
+          if [ -d "tests" ] || [ -d "__tests__" ] || find . -name "*.test.ts" -o -name "*.test.tsx" | grep -q .; then
+            echo "Tests found - please configure test runner"
+            # npm test
+          else
+            echo "No tests found"
+          fi
+
+  build-check:
+    name: 🏗️ Build Check (Expo)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📥 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📚 Install dependencies
+        run: npm ci
+
+      - name: 🔍 Expo Doctor check
+        run: npx expo-doctor
+
+      - name: 🏗️ Verify Metro bundler config
+        run: |
+          npx expo config --type public
+          echo "Expo config validated"

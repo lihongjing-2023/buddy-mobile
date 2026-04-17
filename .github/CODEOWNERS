@@ -1,0 +1,10 @@
+# GitHub CODEOWNERS 文件
+# 指定代码路径的默认审查者
+
+* @lihongjing-2023
+
+# 按目录细分
+/src/ @lihongjing-2023
+/docs/ @lihongjing-2023
+/.github/ @lihongjing-2023
+/*.md @lihongjing-2023
