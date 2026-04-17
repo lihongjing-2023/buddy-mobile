@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+echo "🚀 Running code checks..."
+
+# Run CI checks
+npm run ci
+
+if [ $? -eq 0 ]; then
+  echo "✅ Code checks passed, push allowed"
+  exit 0
+else
+  echo "❌ Code checks failed, please fix before pushing"
+  exit 1
+fi

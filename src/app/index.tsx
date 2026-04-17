@@ -21,7 +21,7 @@ import { useAccountStore } from '@/modules/account/account-store';
 import { useCheckinStore } from '@/modules/checkin/checkin-store';
 import { CheckinService } from '@/modules/checkin/checkin-service';
 import { useRefresh } from '@/hooks/useRefresh';
-import { useAutoRefresh, saveQuotaSnapshot } from '@/hooks/useAutoRefresh';
+import { saveQuotaSnapshot } from '@/hooks/useAutoRefresh';
 import { AccountCard } from '@/components/AccountCard';
 import { EmptyState } from '@/components/EmptyState';
 import { exportAccounts } from '@/modules/account/export-import';

@@ -29,7 +29,6 @@ const ThemeContext = createContext<ThemeContextValue>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>('light');
-  const [loaded, setLoaded] = useState(false);
 
   // 从 AsyncStorage 恢复用户选择
   useEffect(() => {
@@ -41,9 +40,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       })
       .catch((err) => {
         console.error('[Theme] Failed to load theme:', err);
-      })
-      .finally(() => {
-        setLoaded(true);
       });
   }, []);
 
