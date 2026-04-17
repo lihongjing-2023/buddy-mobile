@@ -75,17 +75,20 @@ export function useAutoRefresh() {
 
     lastRefreshRef.current = now;
 
-    for (let i = 0; i < accounts.length; i += 2) {
+    // 始终从 store 读取最新账号列表，避免 stale closure
+    const currentAccounts = useAccountStore.getState().accounts;
+
+    for (let i = 0; i < currentAccounts.length; i += 2) {
       if (i > 0) {
         await new Promise((r) => setTimeout(r, 1000));
       }
-      const batch = accounts.slice(i, i + 2);
+      const batch = currentAccounts.slice(i, i + 2);
       await Promise.allSettled(batch.map((acc) => refreshAccount(acc)));
     }
 
     // 刷新完成后保存额度历史快照
     await saveQuotaSnapshot();
-  }, [accounts, refreshAccount]);
+  }, [refreshAccount]);
 
   useEffect(() => {
     let cancelled = false;

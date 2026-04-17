@@ -46,11 +46,15 @@ export class AccountService {
     const now = Date.now();
 
     // 构建更新后的账号对象
+    // 兼容秒级时间戳：小于 1e12 视为秒级，转为毫秒
+    let expiresAt = tokens.expiresAt;
+    if (expiresAt > 0 && expiresAt < 1e12) expiresAt *= 1000;
+
     const updatedAccount: WorkbuddyAccount = {
       ...account,
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken,
-      expires_at: tokens.expiresAt,
+      expires_at: expiresAt,
       domain: tokens.domain || account.domain,
       token_type: tokens.tokenType || account.token_type,
       last_used: now,

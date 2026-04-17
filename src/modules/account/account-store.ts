@@ -25,12 +25,14 @@ function stripTokens(account: WorkbuddyAccount): Omit<WorkbuddyAccount, 'access_
   return { ...safe, access_token: undefined, refresh_token: undefined };
 }
 
-/** 从 SecureStore 补充 token 到账号对象 */
+/** 从 SecureStore 补充 token 到账号对象（容忍部分失败） */
 async function hydrateTokens(account: WorkbuddyAccount): Promise<void> {
-  const [at, rt] = await Promise.all([
+  const results = await Promise.allSettled([
     tokenStorage.getAccessToken(account.id),
     tokenStorage.getRefreshToken(account.id),
   ]);
+  const at = results[0].status === 'fulfilled' ? results[0].value : null;
+  const rt = results[1].status === 'fulfilled' ? results[1].value : null;
   if (at) account.access_token = at;
   if (rt) account.refresh_token = rt;
 }
@@ -108,8 +110,8 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         ? raw.map((r) => parseWorkbuddyAccount(r))
         : [];
 
-      // 从 SecureStore 补充 token（唯一权威来源）
-      await Promise.all(accounts.map(hydrateTokens));
+      // 从 SecureStore 补充 token（唯一权威来源，容忍个别账号失败）
+      await Promise.allSettled(accounts.map(hydrateTokens));
 
       set({ accounts, isLoading: false });
     } catch (err) {
@@ -131,16 +133,20 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 
       if (existingIdx >= 0) {
         const existing = current[existingIdx];
+        // 以 last_used 较新的为主对象，用另一个对象补充缺失字段
+        const useExisting = existing.last_used && existing.last_used >= (incoming.last_used || 0);
+        const primary = useExisting ? existing : incoming;
+        const secondary = useExisting ? incoming : existing;
         const merged: WorkbuddyAccount = {
-          ...(existing.last_used && existing.last_used >= (incoming.last_used || 0)
-            ? existing
-            : incoming),
-          nickname: incoming.nickname || existing.nickname,
-          avatar_url: incoming.avatar_url || existing.avatar_url,
-          name: incoming.name || existing.name,
-          domain: incoming.domain || existing.domain,
-          enterprise_id: incoming.enterprise_id || existing.enterprise_id,
-          enterprise_name: incoming.enterprise_name || existing.enterprise_name,
+          ...secondary,   // 先展开次要对象
+          ...primary,     // 主对象覆盖（保留较新的核心数据）
+          // 补充次要对象中有而主对象缺失的字段
+          nickname: primary.nickname || secondary.nickname,
+          avatar_url: primary.avatar_url || secondary.avatar_url,
+          name: primary.name || secondary.name,
+          domain: primary.domain || secondary.domain,
+          enterprise_id: primary.enterprise_id || secondary.enterprise_id,
+          enterprise_name: primary.enterprise_name || secondary.enterprise_name,
           last_used: Math.max(existing.last_used || 0, incoming.last_used || 0),
         };
         current[existingIdx] = merged;
@@ -151,10 +157,11 @@ export const useAccountStore = create<AccountState>((set, get) => ({
     }
 
     // 持久化：AsyncStorage 存元数据（剥离 token），SecureStore 存 token
+    // 注意：使用合并后的 current 列表持久化 token，确保 SecureStore 与内存一致
     const safeAccounts = current.map(stripTokens);
     await accountStorage.setAccounts(safeAccounts);
-    await Promise.all(newAccounts.map(persistTokens));
-    set({ accounts: current }); // 已经 spread 过了，直接赋值
+    await Promise.all(current.map(persistTokens));
+    set({ accounts: current });
 
     return addedCount;
   },
@@ -164,35 +171,51 @@ export const useAccountStore = create<AccountState>((set, get) => ({
       a.id === id ? { ...a, ...updates } : a
     );
 
-    // 持久化：AsyncStorage 存元数据（剥离 token），SecureStore 存 token
-    const safeAccounts = accounts.map(stripTokens);
-    await accountStorage.setAccounts(safeAccounts);
-    await persistTokenUpdates(id, updates);
-    set({ accounts });
+    try {
+      // 持久化：AsyncStorage 存元数据（剥离 token），SecureStore 存 token
+      const safeAccounts = accounts.map(stripTokens);
+      await accountStorage.setAccounts(safeAccounts);
+      await persistTokenUpdates(id, updates);
+      set({ accounts });
+    } catch (err) {
+      set({ error: `更新账号失败: ${err}` });
+    }
   },
 
   removeAccount: async (id) => {
     const accounts = get().accounts.filter((a) => a.id !== id);
-    const safeAccounts = accounts.map(stripTokens);
-    await accountStorage.setAccounts(safeAccounts);
-    await tokenStorage.removeTokens(id);
-    set({ accounts });
+    try {
+      const safeAccounts = accounts.map(stripTokens);
+      await accountStorage.setAccounts(safeAccounts);
+      await tokenStorage.removeTokens(id);
+      set({ accounts });
+    } catch (err) {
+      set({ error: `删除账号失败: ${err}` });
+    }
   },
 
   removeAccounts: async (ids) => {
     const idSet = new Set(ids);
     const accounts = get().accounts.filter((a) => !idSet.has(a.id));
-    const safeAccounts = accounts.map(stripTokens);
-    await accountStorage.setAccounts(safeAccounts);
-    await Promise.all(ids.map((id) => tokenStorage.removeTokens(id)));
-    set({ accounts });
+    try {
+      const safeAccounts = accounts.map(stripTokens);
+      await accountStorage.setAccounts(safeAccounts);
+      await Promise.allSettled(ids.map((id) => tokenStorage.removeTokens(id)));
+      set({ accounts });
+    } catch (err) {
+      set({ error: `批量删除账号失败: ${err}` });
+    }
   },
 
   clearAll: async () => {
     const allIds = get().accounts.map((a) => a.id);
-    await accountStorage.clearAccounts();
-    await Promise.all(allIds.map((id) => tokenStorage.removeTokens(id)));
-    set({ accounts: [] });
+    try {
+      await accountStorage.clearAccounts();
+      await Promise.allSettled(allIds.map((id) => tokenStorage.removeTokens(id)));
+      set({ accounts: [] });
+    } catch (err) {
+      set({ error: `清空账号失败: ${err}` });
+    }
   },
 
   setRefreshing: (ids, refreshing) => {

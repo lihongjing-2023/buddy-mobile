@@ -91,15 +91,22 @@ export async function importAccounts(
     );
 
     if (dupIdx >= 0) {
-      // 合并：保留 last_used 较新的
+      // 合并：以 last_used 较新的为主对象，用另一个对象补充缺失字段（与 account-store upsertAccounts 对齐）
       const existing = finalAccounts[dupIdx];
-      const keepExisting =
-        existing.last_used &&
-        existing.last_used >= (incoming.last_used || 0);
-
-      finalAccounts[dupIdx] = keepExisting
-        ? { ...existing, ...incoming, last_used: existing.last_used }
-        : { ...incoming, ...existing, last_used: incoming.last_used };
+      const useExisting = existing.last_used && existing.last_used >= (incoming.last_used || 0);
+      const primary = useExisting ? existing : incoming;
+      const secondary = useExisting ? incoming : existing;
+      finalAccounts[dupIdx] = {
+        ...secondary,
+        ...primary,
+        nickname: primary.nickname || secondary.nickname,
+        avatar_url: primary.avatar_url || secondary.avatar_url,
+        name: primary.name || secondary.name,
+        domain: primary.domain || secondary.domain,
+        enterprise_id: primary.enterprise_id || secondary.enterprise_id,
+        enterprise_name: primary.enterprise_name || secondary.enterprise_name,
+        last_used: Math.max(existing.last_used || 0, incoming.last_used || 0),
+      };
       skipped++;
     } else {
       finalAccounts.push(incoming);

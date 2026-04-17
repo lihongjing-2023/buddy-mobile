@@ -407,5 +407,8 @@ export function formatRelativeTime(timestamp: number | undefined): string {
 
 /** 检查 Token 是否即将过期（提前5分钟刷新） */
 export function isTokenExpiringSoon(expiresAt: number, bufferMs = 5 * 60 * 1000): boolean {
-  return Date.now() >= expiresAt - bufferMs;
+  // 兼容秒级时间戳：小于 1e12 视为秒级，转为毫秒
+  let ms = expiresAt;
+  if (ms > 0 && ms < 1e12) ms *= 1000;
+  return Date.now() >= ms - bufferMs;
 }
