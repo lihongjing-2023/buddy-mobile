@@ -33,12 +33,7 @@
     ],
     [
       "expo-secure-store"
-    ],
-    [
-      "expo-task-manager"
-    ],
-    "expo-asset",
-    "expo-font"
+    ]
   ],
   "experiments": {
     "typedRoutes": true
