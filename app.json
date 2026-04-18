@@ -20,21 +20,9 @@
       "foregroundImage": "./assets/adaptive-icon.png",
       "backgroundColor": "#0F0E17"
     },
-    "package": "com.cockpittools.mobile"
+    "package": "com.cockpittools.mobile",
+    "enableHermes": true
   },
-  "web": {
-    "bundler": "metro",
-    "output": "static",
-    "favicon": "./assets/favicon.png"
-  },
-  "plugins": [
-    [
-      "expo-router"
-    ],
-    [
-      "expo-secure-store"
-    ]
-  ],
   "experiments": {
     "typedRoutes": true
   },
