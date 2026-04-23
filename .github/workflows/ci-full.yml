@@ -142,8 +142,8 @@ jobs:
       - name: Enable ABI split in build.gradle
         working-directory: android
         run: |
-          # 在 android.defaultConfig 中注入 ABI 拆分配置
-          sed -i '/defaultConfig {/a\        ndk {\n            abiFilters "arm64-v8a", "armeabi-v7a"\n        }\n        splits {\n            abi {\n                enable true\n                reset()\n                include "arm64-v8a", "armeabi-v7a"\n                universalApk false\n            }\n        }' app/build.gradle
+          # 在 android 块末尾注入 splits ABI 拆分配置（不使用 ndk.abiFilters，避免与 splits 冲突）
+          sed -i '/^android {/a\    splits {\n        abi {\n            enable true\n            reset()\n            include "arm64-v8a", "armeabi-v7a"\n            universalApk false\n        }\n    }' app/build.gradle
 
       - name: Build Android APK (split by ABI)
         working-directory: android
