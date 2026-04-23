@@ -20,7 +20,7 @@ import { settingsStorage, type AppSettings } from '@/services/storage';
 import { useAccountStore } from '@/modules/account/account-store';
 import { useTheme, type ThemeMode } from '@/theme';
 import { getAppVersion } from '@/services/app-info';
-import { checkForUpdate, type UpdateInfo } from '@/modules/core/update-service';
+import { checkForUpdate } from '@/modules/core/update-service';
 
 const REFRESH_OPTIONS = [
   { label: '关闭', value: 0 },

@@ -58,7 +58,7 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
   const latestVersion = (data.tag_name as string).replace(/^v/, '');
   const currentVersion = getAppVersion();
 
-  const downloadAssets = (data.assets as Array<{ name: string; browser_download_url: string; size: number }>)
+  const downloadAssets = (data.assets as { name: string; browser_download_url: string; size: number }[])
     .filter((a) => a.name.endsWith('.apk'))
     .map((a) => ({ name: a.name, url: a.browser_download_url, size: a.size }));
 
