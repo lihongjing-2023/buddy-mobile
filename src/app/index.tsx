@@ -27,26 +27,24 @@ import { EmptyState } from '@/components/EmptyState';
 import { exportAccounts } from '@/modules/account/export-import';
 import { checkinLogStorage } from '@/services/storage';
 import { useTheme } from '@/theme';
+import type { WorkbuddyAccount } from '@/modules/core/types';
+import { runInBatches } from '@/modules/core/batch';
 
 export default function HomePage() {
   const router = useRouter();
   const { colors } = useTheme();
-  const {
-    accounts,
-    isLoading,
-    refreshingIds,
-    loadAccounts,
-    setRefreshing,
-    setError,
-  } = useAccountStore();
-  const { updateAccount } = useAccountStore();
-  const {
-    isBatchCheckingIn,
-    setCheckinStatus,
-    setBatchCheckingIn,
-    setBatchProgress,
-    setLastBatchResult,
-  } = useCheckinStore();
+  const accounts = useAccountStore((s) => s.accounts);
+  const isLoading = useAccountStore((s) => s.isLoading);
+  const refreshingIds = useAccountStore((s) => s.refreshingIds);
+  const loadAccounts = useAccountStore((s) => s.loadAccounts);
+  const setRefreshing = useAccountStore((s) => s.setRefreshing);
+  const setError = useAccountStore((s) => s.setError);
+  const updateAccount = useAccountStore((s) => s.updateAccount);
+  const isBatchCheckingIn = useCheckinStore((s) => s.isBatchCheckingIn);
+  const setCheckinStatus = useCheckinStore((s) => s.setCheckinStatus);
+  const setBatchCheckingIn = useCheckinStore((s) => s.setBatchCheckingIn);
+  const setBatchProgress = useCheckinStore((s) => s.setBatchProgress);
+  const setLastBatchResult = useCheckinStore((s) => s.setLastBatchResult);
   const { refreshAccount } = useRefresh();
 
   // 签到统计
@@ -71,22 +69,18 @@ export default function HomePage() {
     let failCount = 0;
 
     // 分批刷新，最多 2 并发，批次间延迟 1 秒避免请求过快被限流
-    const batchSize = 2;
-    for (let i = 0; i < accounts.length; i += batchSize) {
-      if (i > 0) {
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-      const batch = accounts.slice(i, i + batchSize);
-      const results = await Promise.allSettled(
-        batch.map((acc) => refreshAccount(acc))
-      );
+    const batchResults = await runInBatches(
+      accounts,
+      2,
+      (acc) => refreshAccount(acc),
+      { delayMs: 1000 }
+    );
 
-      for (const r of results) {
-        if (r.status === 'fulfilled' && r.value.success) {
-          successCount++;
-        } else {
-          failCount++;
-        }
+    for (const r of batchResults) {
+      if (r.status === 'fulfilled' && r.value.success) {
+        successCount++;
+      } else {
+        failCount++;
       }
     }
 
@@ -198,6 +192,22 @@ export default function HomePage() {
     );
   }, [accounts, setBatchCheckingIn, setBatchProgress, setLastBatchResult, setCheckinStatus, updateAccount]);
 
+  /** 列表项渲染 */
+  const renderItem = useCallback(
+    ({ item }: { item: WorkbuddyAccount }) => (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => router.push(`/account/${item.id}`)}
+      >
+        <AccountCard
+          account={item}
+          isRefreshing={refreshingIds.has(item.id)}
+        />
+      </TouchableOpacity>
+    ),
+    [refreshingIds, router]
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: colors.bgPage }]}>
       {/* ====== 操作栏 ====== */}
@@ -249,17 +259,7 @@ export default function HomePage() {
         <FlatList
           data={accounts}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => router.push(`/account/${item.id}`)}
-            >
-              <AccountCard
-                account={item}
-                isRefreshing={refreshingIds.has(item.id)}
-              />
-            </TouchableOpacity>
-          )}
+          renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor={colors.refreshTint}/>

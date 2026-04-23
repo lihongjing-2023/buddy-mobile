@@ -3,6 +3,7 @@
  * 显示账号邮箱、套餐徽章、用量状态、配额分组概要、签到状态
  */
 
+import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { WorkbuddyAccount } from '@/modules/core/types';
@@ -22,7 +23,7 @@ interface AccountCardProps {
   isRefreshing?: boolean;
 }
 
-export function AccountCard({ account, isRefreshing }: AccountCardProps) {
+export const AccountCard = React.memo(function AccountCard({ account, isRefreshing }: AccountCardProps) {
   const { colors } = useTheme();
   const quotaResult = parseQuotaRawData(
     account.quota_raw?.dosage,
@@ -133,7 +134,7 @@ export function AccountCard({ account, isRefreshing }: AccountCardProps) {
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

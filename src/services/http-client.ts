@@ -1,13 +1,9 @@
 /**
  * HTTP 客户端
- * 基于 axios，带 Token 自动刷新拦截器 + 并发锁机制
+ * 基于原生 fetch，带 Token 自动刷新拦截器 + 并发锁机制
+ * 替代 axios 以减小 bundle 体积
  */
 
-import axios, {
-  AxiosInstance,
-  AxiosError,
-  InternalAxiosRequestConfig,
-} from 'axios';
 import { API_ENDPOINTS } from '@/modules/core/constants';
 import type { ApiResponse, TokenRefreshData } from '@/modules/core/types';
 
@@ -18,7 +14,7 @@ export type TokenRefreshFn = (
   refreshToken: string
 ) => Promise<TokenRefreshData>;
 
-/** HTTP 客户户端配置选项 */
+/** HTTP 客户端配置选项 */
 export interface HttpClientOptions {
   /** Token 获取函数 (返回当前有效的 access_token) */
   getAccessToken: () => string | undefined;
@@ -32,105 +28,180 @@ export interface HttpClientOptions {
   getDomain?: () => string | undefined;
 }
 
+/** 请求配置 */
+export interface RequestOptions {
+  /** 请求头 */
+  headers?: Record<string, string>;
+  /** 超时时间 (ms) */
+  timeout?: number;
+}
+
+/** HTTP 客户端实例接口 */
+export interface HttpClient {
+  /** GET 请求 */
+  get<T>(url: string, options?: RequestOptions): Promise<ApiResponse<T>>;
+  /** POST 请求 */
+  post<T>(url: string, data?: unknown, options?: RequestOptions): Promise<ApiResponse<T>>;
+}
+
+// ==================== 工具函数 ====================
+
+/** 带超时的 fetch */
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs = 30_000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+    return response;
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') {
+      throw new Error(`请求超时 (${timeoutMs}ms)`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 解析 API 响应 */
+async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
+  if (!response.ok) {
+    // HTTP 状态码非 2xx
+    const errorBody = await response.text().catch(() => '');
+    throw new Error(`HTTP ${response.status}: ${errorBody || response.statusText}`);
+  }
+
+  const body = (await response.json()) as ApiResponse<T>;
+  return body;
+}
+
 // ==================== 创建实例 ====================
 
-export function createHttpClient(options: HttpClientOptions): AxiosInstance {
-  const instance = axios.create({
-    baseURL: API_ENDPOINTS.BASE,
-    timeout: 30_000,
-    headers: { 'Content-Type': 'application/json' },
-  });
-
+export function createHttpClient(options: HttpClientOptions): HttpClient {
   // 并发刷新锁：防止多个 401 同时触发多次 refresh
   let refreshPromise: Promise<TokenRefreshData> | null = null;
 
-  // ====== Request 拦截器：注入 Auth Headers ======
-  instance.interceptors.request.use(
-    (config: InternalAxiosRequestConfig) => {
-      const token = options.getAccessToken();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+  /** 构建请求头 */
+  function buildHeaders(custom?: Record<string, string>): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...custom,
+    };
 
-      const domain = options.getDomain?.();
-      if (domain) {
-        config.headers['X-Domain'] = domain;
-      }
-
-      return config;
-    },
-    (error) => Promise.reject(error)
-  );
-
-  // ====== Response 拦截器：自动刷新 Token ======
-  instance.interceptors.response.use(
-    (response) => response,
-    async (error: AxiosError<ApiResponse>) => {
-      const originalRequest = error.config as InternalAxiosRequestConfig & {
-        _retry?: boolean;
-      };
-
-      // 仅对 401 且未重试过的请求进行 token 刷新
-      if (
-        error.response?.status === 401 &&
-        !originalRequest._retry &&
-        !originalRequest.url?.includes('auth/token/refresh')
-      ) {
-        originalRequest._retry = true;
-        const rt = options.getRefreshToken();
-
-        if (!rt) {
-          // 无 refresh_token，直接拒绝
-          return Promise.reject(error);
-        }
-
-        // 使用并发锁，确保只执行一次 refresh
-        if (!refreshPromise) {
-          refreshPromise = doTokenRefresh(rt)
-            .then((data) => {
-              options.onTokenRefreshed(data);
-              return data;
-            })
-            .finally(() => {
-              refreshPromise = null;
-            });
-        }
-
-        try {
-          const newTokens = await refreshPromise;
-          // 重试原请求，更新 Authorization header
-          originalRequest.headers.Authorization = `Bearer ${newTokens.accessToken}`;
-          return instance(originalRequest);
-        } catch (refreshErr) {
-          // refresh 失败，清除本地 token
-          console.error('[HttpClient] Token refresh failed:', refreshErr);
-          return Promise.reject(refreshErr);
-        }
-      }
-
-      return Promise.reject(error);
+    const token = options.getAccessToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
     }
-  );
 
-  return instance;
+    const domain = options.getDomain?.();
+    if (domain) {
+      headers['X-Domain'] = domain;
+    }
+
+    return headers;
+  }
+
+  /** 执行请求（带 401 自动刷新重试） */
+  async function request<T>(
+    method: string,
+    url: string,
+    data?: unknown,
+    requestOptions?: RequestOptions
+  ): Promise<ApiResponse<T>> {
+    const fullUrl = url.startsWith('http') ? url : `${API_ENDPOINTS.BASE}${url}`;
+    const headers = buildHeaders(requestOptions?.headers);
+    const timeout = requestOptions?.timeout ?? 30_000;
+
+    const init: RequestInit = {
+      method,
+      headers,
+    };
+
+    if (data !== undefined && method !== 'GET') {
+      init.body = JSON.stringify(data);
+    }
+
+    const response = await fetchWithTimeout(fullUrl, init, timeout);
+    const body = await parseResponse<T>(response);
+
+    // 401 自动刷新 Token
+    if (response.status === 401 && !url.includes('auth/token/refresh')) {
+      const rt = options.getRefreshToken();
+      if (!rt) {
+        throw new Error('无 refresh_token，认证失败');
+      }
+
+      // 使用并发锁，确保只执行一次 refresh
+      if (!refreshPromise) {
+        refreshPromise = doTokenRefresh(rt)
+          .then((tokenData) => {
+            options.onTokenRefreshed(tokenData);
+            return tokenData;
+          })
+          .finally(() => {
+            refreshPromise = null;
+          });
+      }
+
+      try {
+        const newTokens = await refreshPromise;
+        // 用新 token 重试原请求
+        const retryHeaders = { ...headers, Authorization: `Bearer ${newTokens.accessToken}` };
+        const retryInit: RequestInit = {
+          method,
+          headers: retryHeaders,
+        };
+        if (data !== undefined && method !== 'GET') {
+          retryInit.body = JSON.stringify(data);
+        }
+
+        const retryResponse = await fetchWithTimeout(fullUrl, retryInit, timeout);
+        return parseResponse<T>(retryResponse);
+      } catch (refreshErr) {
+        console.error('[HttpClient] Token refresh failed:', refreshErr);
+        throw refreshErr;
+      }
+    }
+
+    return body;
+  }
+
+  return {
+    get<T>(url: string, opts?: RequestOptions): Promise<ApiResponse<T>> {
+      return request<T>('GET', url, undefined, opts);
+    },
+    post<T>(url: string, data?: unknown, opts?: RequestOptions): Promise<ApiResponse<T>> {
+      return request<T>('POST', url, data, opts);
+    },
+  };
 }
 
 /** 执行实际的 Token 刷新请求 */
 async function doTokenRefresh(
   refreshToken: string
 ): Promise<TokenRefreshData> {
-  const response = await axios.post<ApiResponse<TokenRefreshData>>(
+  const response = await fetchWithTimeout(
     `${API_ENDPOINTS.BASE}${API_ENDPOINTS.TOKEN_REFRESH}`,
-    {},
     {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Refresh-Token': refreshToken,
       },
-    }
+      body: JSON.stringify({}),
+    },
+    30_000
   );
 
-  const body = response.data;
+  const body = (await response.json()) as ApiResponse<TokenRefreshData>;
   if (body.code !== 0 && body.code !== 200) {
     throw new Error(`Token refresh failed: ${body.msg || 'Unknown error'}`);
   }
@@ -150,4 +221,52 @@ export function buildQuotaHeaders(
   if (enterpriseId) headers['X-Enterprise-Id'] = enterpriseId;
   if (tenantId) headers['X-Tenant-Id'] = tenantId;
   return headers;
+}
+
+// ==================== 便捷方法：无客户端直接请求 ====================
+
+/** 直接 POST 请求（不经过 createHttpClient 实例） */
+export async function postJson<T>(
+  url: string,
+  data?: unknown,
+  headers?: Record<string, string>,
+  timeout = 30_000
+): Promise<ApiResponse<T>> {
+  const fullUrl = url.startsWith('http') ? url : `${API_ENDPOINTS.BASE}${url}`;
+  const response = await fetchWithTimeout(
+    fullUrl,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      body: data !== undefined ? JSON.stringify(data) : JSON.stringify({}),
+    },
+    timeout
+  );
+
+  return parseResponse<T>(response);
+}
+
+/** 直接 GET 请求（不经过 createHttpClient 实例） */
+export async function getJson<T>(
+  url: string,
+  headers?: Record<string, string>,
+  timeout = 30_000
+): Promise<ApiResponse<T>> {
+  const fullUrl = url.startsWith('http') ? url : `${API_ENDPOINTS.BASE}${url}`;
+  const response = await fetchWithTimeout(
+    fullUrl,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+    },
+    timeout
+  );
+
+  return parseResponse<T>(response);
 }

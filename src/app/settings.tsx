@@ -32,7 +32,8 @@ const THEME_OPTIONS: { label: string; value: ThemeMode; icon: string }[] = [
 ];
 
 export default function SettingsPage() {
-  const { clearAll, accounts } = useAccountStore();
+  const clearAll = useAccountStore((s) => s.clearAll);
+  const accounts = useAccountStore((s) => s.accounts);
   const { colors, mode, setMode } = useTheme();
   const [settings, setSettings] = useState<AppSettings>({
     autoRefreshIntervalMinutes: 60,

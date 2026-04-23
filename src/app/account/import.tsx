@@ -26,7 +26,7 @@ type ImportMode = 'text' | 'file';
 
 export default function ImportPage() {
   const router = useRouter();
-  const { upsertAccounts } = useAccountStore();
+  const upsertAccounts = useAccountStore((s) => s.upsertAccounts);
   const { colors } = useTheme();
 
   const [mode, setMode] = useState<ImportMode>('text');

@@ -34,7 +34,8 @@ import { useTheme } from '@/theme';
 export default function AccountDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { accounts, updateAccount } = useAccountStore();
+  const accounts = useAccountStore((s) => s.accounts);
+  const updateAccount = useAccountStore((s) => s.updateAccount);
   const { refreshAccount } = useRefresh();
   const { colors } = useTheme();
 

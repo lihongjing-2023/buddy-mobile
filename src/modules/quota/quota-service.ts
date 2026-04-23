@@ -1,20 +1,18 @@
 /**
  * 配额服务 - 封装 3 个配额 API
- * 依赖 http-client 的 axios 实例
+ * 使用原生 fetch 替代 axios
  */
 
-import axios from 'axios';
 import type {
   DosageNotifyResponse,
   PaymentTypeResponse,
   UserResourceResponse,
   UserResourceQuery,
-  ApiResponse,
   WorkbuddyAccount,
   QuotaRawData,
 } from '@/modules/core/types';
 import { API_ENDPOINTS, DEFAULT_PRODUCT_CODE, RESOURCE_STATUS } from '@/modules/core/constants';
-import { buildQuotaHeaders } from '@/services/http-client';
+import { buildQuotaHeaders, postJson } from '@/services/http-client';
 
 export class QuotaService {
   constructor(
@@ -27,13 +25,12 @@ export class QuotaService {
   async fetchDosageNotify(account: WorkbuddyAccount): Promise<DosageNotifyResponse | undefined> {
     const headers = this.buildHeaders(account);
     try {
-      const response = await axios.post<ApiResponse<DosageNotifyResponse>>(
-        `${API_ENDPOINTS.BASE}${API_ENDPOINTS.DOSAGE_NOTIFY}`,
+      const body = await postJson<DosageNotifyResponse>(
+        API_ENDPOINTS.DOSAGE_NOTIFY,
         {},
-        { headers }
+        headers
       );
-      const data = response.data;
-      return (data.code === 0 || data.code === 200) ? data.data : undefined;
+      return (body.code === 0 || body.code === 200) ? body.data : undefined;
     } catch {
       return undefined;
     }
@@ -43,13 +40,12 @@ export class QuotaService {
   async fetchPaymentType(account: WorkbuddyAccount): Promise<PaymentTypeResponse | undefined> {
     const headers = this.buildHeaders(account);
     try {
-      const response = await axios.post<ApiResponse<PaymentTypeResponse>>(
-        `${API_ENDPOINTS.BASE}${API_ENDPOINTS.PAYMENT_TYPE}`,
+      const body = await postJson<PaymentTypeResponse>(
+        API_ENDPOINTS.PAYMENT_TYPE,
         {},
-        { headers }
+        headers
       );
-      const data = response.data;
-      return (data.code === 0 || data.code === 200) ? data.data : undefined;
+      return (body.code === 0 || body.code === 200) ? body.data : undefined;
     } catch {
       return undefined;
     }
@@ -68,7 +64,7 @@ export class QuotaService {
     const endTime = new Date(now);
     endTime.setFullYear(endTime.getFullYear() + 101);
 
-    const body: UserResourceQuery = {
+    const userResourceBody: UserResourceQuery = {
       PageNumber: 1,
       PageSize: 100,
       ProductCode: DEFAULT_PRODUCT_CODE,
@@ -79,14 +75,12 @@ export class QuotaService {
 
     const headers = this.buildHeaders(account);
     try {
-      const response = await axios.post<ApiResponse<UserResourceResponse>>(
-        `${API_ENDPOINTS.BASE}${API_ENDPOINTS.USER_RESOURCE}`,
-        body,
-        { headers }
+      const body = await postJson<UserResourceResponse>(
+        API_ENDPOINTS.USER_RESOURCE,
+        userResourceBody,
+        headers
       );
-
-      const data = response.data;
-      return (data.code === 0 || data.code === 200) ? data.data : undefined;
+      return (body.code === 0 || body.code === 200) ? body.data : undefined;
     } catch {
       return undefined;
     }

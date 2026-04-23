@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname, type Href } from 'expo-router';
 import { ThemeProvider, useTheme } from '@/theme';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const TAB_BAR_HEIGHT = 56; // TabBar 自身高度（不含安全区）
 
@@ -101,9 +102,11 @@ function RootLayoutInner() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <RootLayoutInner />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <RootLayoutInner />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -1,9 +1,9 @@
 /**
  * 账号服务 - API 调用层
  * 封装 Token 刷新 + 账号信息拉取 + 三路配额 API 并行调用
+ * 使用原生 fetch 替代 axios
  */
 
-import axios, { AxiosInstance } from 'axios';
 import {
   API_ENDPOINTS,
   DEFAULT_PRODUCT_CODE,
@@ -13,20 +13,19 @@ import type {
   WorkbuddyAccount,
   QuotaRawData,
   TokenRefreshData,
-  ApiResponse,
   DosageNotifyResponse,
   PaymentTypeResponse,
   UserResourceResponse,
   UserResourceQuery,
 } from '@/modules/core/types';
-import { buildQuotaHeaders } from '@/services/http-client';
+import { buildQuotaHeaders, postJson, getJson } from '@/services/http-client';
 import { normalizeUserResourceItem } from '@/modules/core/parser';
 
 // ==================== 账号服务类 ====================
 
 export class AccountService {
   constructor(
-    private httpClient: AxiosInstance,
+    private _httpClient?: unknown, // 保留签名兼容，实际不再使用
     private getUid?: () => string | undefined,
     private getDomain?: () => string | undefined
   ) {}
@@ -70,20 +69,18 @@ export class AccountService {
   async refreshToken(
     account: WorkbuddyAccount
   ): Promise<TokenRefreshData> {
-    const response = await axios.post<ApiResponse<TokenRefreshData>>(
-      `${API_ENDPOINTS.BASE}${API_ENDPOINTS.TOKEN_REFRESH}`,
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${account.access_token}`,
+      'X-Refresh-Token': account.refresh_token,
+    };
+    if (account.domain) headers['X-Domain'] = account.domain;
+
+    const body = await postJson<TokenRefreshData>(
+      API_ENDPOINTS.TOKEN_REFRESH,
       {},
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${account.access_token}`,
-          'X-Refresh-Token': account.refresh_token,
-          ...(account.domain ? { 'X-Domain': account.domain } : {}),
-        },
-      }
+      headers
     );
 
-    const body = response.data;
     if (body.code !== 0 && body.code !== 200) {
       throw new Error(`Token 刷新失败: ${body.msg}`);
     }
@@ -98,9 +95,9 @@ export class AccountService {
     const domain = this.getDomain?.() || account.domain;
     const enterpriseId = account.enterprise_id;
     const tenantId = account.tenant_id;
-    const headers = buildQuotaHeaders(uid, domain, enterpriseId, tenantId);
-    const authHeader = {
-      ...headers,
+    const quotaHeaders = buildQuotaHeaders(uid, domain, enterpriseId, tenantId);
+    const authHeaders: Record<string, string> = {
+      ...quotaHeaders,
       Authorization: `Bearer ${account.access_token}`,
     };
 
@@ -123,37 +120,37 @@ export class AccountService {
     };
 
     const [dosageRes, paymentRes, userRes] = await Promise.allSettled([
-      axios.post<ApiResponse<DosageNotifyResponse>>(
-        `${API_ENDPOINTS.BASE}${API_ENDPOINTS.DOSAGE_NOTIFY}`,
+      postJson<DosageNotifyResponse>(
+        API_ENDPOINTS.DOSAGE_NOTIFY,
         {},
-        { headers: authHeader }
+        authHeaders
       ),
-      axios.post<ApiResponse<PaymentTypeResponse>>(
-        `${API_ENDPOINTS.BASE}${API_ENDPOINTS.PAYMENT_TYPE}`,
+      postJson<PaymentTypeResponse>(
+        API_ENDPOINTS.PAYMENT_TYPE,
         {},
-        { headers: authHeader }
+        authHeaders
       ),
-      axios.post<ApiResponse<UserResourceResponse>>(
-        `${API_ENDPOINTS.BASE}${API_ENDPOINTS.USER_RESOURCE}`,
+      postJson<UserResourceResponse>(
+        API_ENDPOINTS.USER_RESOURCE,
         userResourceBody,
-        { headers: authHeader }
+        authHeaders
       ),
     ]);
 
     return {
       dosage: dosageRes.status === 'fulfilled'
-        ? dosageRes.value.data.code === 0 || dosageRes.value.data.code === 200
-          ? normalizeDosageResponse(dosageRes.value.data.data)
+        ? dosageRes.value.code === 0 || dosageRes.value.code === 200
+          ? normalizeDosageResponse(dosageRes.value.data)
           : undefined
         : undefined,
       payment: paymentRes.status === 'fulfilled'
-        ? paymentRes.value.data.code === 0 || paymentRes.value.data.code === 200
-          ? normalizePaymentResponse(paymentRes.value.data.data)
+        ? paymentRes.value.code === 0 || paymentRes.value.code === 200
+          ? normalizePaymentResponse(paymentRes.value.data)
           : undefined
         : undefined,
       userResource: userRes.status === 'fulfilled'
-        ? userRes.value.data.code === 0 || userRes.value.data.code === 200
-          ? normalizeUserResourceResponse(userRes.value.data.data)
+        ? userRes.value.code === 0 || userRes.value.code === 200
+          ? normalizeUserResourceResponse(userRes.value.data)
           : undefined
         : undefined,
     };
@@ -171,12 +168,11 @@ export class AccountService {
     };
     if (domain) headers['X-Domain'] = domain;
 
-    const response = await axios.get<ApiResponse<Record<string, unknown>>>(
-      `${API_ENDPOINTS.BASE}${API_ENDPOINTS.ACCOUNT_INFO}?state=workbuddy`,
-      { headers }
+    const body = await getJson<Record<string, unknown>>(
+      `${API_ENDPOINTS.ACCOUNT_INFO}?state=workbuddy`,
+      headers
     );
 
-    const body = response.data;
     if (body.code !== 0 && body.code !== 200) {
       throw new Error(`获取账号信息失败: ${body.msg}`);
     }
@@ -284,9 +280,9 @@ function normalizeUserResourceResponse(raw: unknown): UserResourceResponse {
 
 /** 工厂函数：创建默认 AccountService 实例 */
 export function createAccountService(
-  httpClient: AxiosInstance,
+  _httpClient?: unknown,
   getUid?: () => string | undefined,
   getDomain?: () => string | undefined
 ): AccountService {
-  return new AccountService(httpClient, getUid, getDomain);
+  return new AccountService(_httpClient, getUid, getDomain);
 }

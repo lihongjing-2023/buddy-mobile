@@ -1,14 +1,16 @@
 /**
  * 签到服务 - 封装 2 个签到 API
+ * 使用原生 fetch 替代 axios
  */
 
 import type {
   CheckinStatusResponse,
   CheckinResponse,
-  ApiResponse,
   WorkbuddyAccount,
 } from '@/modules/core/types';
 import { API_ENDPOINTS } from '@/modules/core/constants';
+import { postJson } from '@/services/http-client';
+import { runInBatches } from '@/modules/core/batch';
 
 export class CheckinService {
   /** 查询签到状态 */
@@ -29,14 +31,12 @@ export class CheckinService {
     if (tenantId) headers['X-Tenant-Id'] = tenantId;
 
     try {
-      const axios = (await import('axios')).default;
-      const response = await axios.post<ApiResponse<CheckinStatusResponse>>(
-        `${API_ENDPOINTS.BASE}${API_ENDPOINTS.CHECKIN_STATUS}`,
+      const body = await postJson<CheckinStatusResponse>(
+        API_ENDPOINTS.CHECKIN_STATUS,
         {},
-        { headers, timeout: 15_000 }
+        headers,
+        15_000
       );
-
-      const body = response.data;
       return body.code === 0 || body.code === 200 ? body.data : null;
     } catch {
       return null;
@@ -61,14 +61,12 @@ export class CheckinService {
     }
 
     try {
-      const axios = (await import('axios')).default;
-      const response = await axios.post<ApiResponse<CheckinResponse>>(
-        `${API_ENDPOINTS.BASE}${API_ENDPOINTS.DAILY_CHECKIN}`,
+      const body = await postJson<CheckinResponse>(
+        API_ENDPOINTS.DAILY_CHECKIN,
         {},
-        { headers, timeout: 15_000 }
+        headers,
+        15_000
       );
-
-      const body = response.data;
 
       if (body.code === 0 || body.code === 200) {
         const data = body.data;
@@ -117,47 +115,26 @@ export class CheckinService {
     message: string;
     reward?: number;
   }[]> {
-    const results: {
-      accountId: string;
-      email: string;
-      success: boolean;
-      message: string;
-      reward?: number;
-    }[] = [];
+    const batchResults = await runInBatches(
+      accounts,
+      concurrency,
+      (acc) =>
+        CheckinService.doDailyCheckin(acc).then((r) => ({
+          accountId: acc.id,
+          email: acc.email,
+          ...r,
+        })),
+      { onProgress }
+    );
 
-    let completed = 0;
-
-    // 分批执行，控制并发
-    for (let i = 0; i < accounts.length; i += concurrency) {
-      const batch = accounts.slice(i, i + concurrency);
-      const batchResults = await Promise.allSettled(
-        batch.map((acc) =>
-          CheckinService.doDailyCheckin(acc).then((r) => ({
-            accountId: acc.id,
-            email: acc.email,
-            ...r,
-          }))
-        )
-      );
-
-      for (let j = 0; j < batchResults.length; j++) {
-        const br = batchResults[j];
-        completed++;
-        onProgress?.(completed, accounts.length);
-
-        if (br.status === 'fulfilled') {
-          results.push(br.value);
-        } else {
-          results.push({
-            accountId: batch[j]?.id || 'unknown',
-            email: batch[j]?.email || 'unknown',
-            success: false,
-            message: `异常: ${br.reason}`,
-          });
-        }
-      }
-    }
-
-    return results;
+    return batchResults.map((br, idx) => {
+      if (br.status === 'fulfilled') return br.value;
+      return {
+        accountId: accounts[idx]?.id || 'unknown',
+        email: accounts[idx]?.email || 'unknown',
+        success: false,
+        message: `异常: ${br.reason}`,
+      };
+    });
   }
 }

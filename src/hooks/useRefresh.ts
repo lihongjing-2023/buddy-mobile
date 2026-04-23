@@ -6,7 +6,6 @@
  */
 
 import { useCallback, useRef } from 'react';
-import axios from 'axios';
 import { useAccountStore } from '@/modules/account/account-store';
 import { tokenStorage } from '@/services/storage';
 import { AccountService } from '@/modules/account/account-service';
@@ -19,13 +18,15 @@ import type { WorkbuddyAccount } from '@/modules/core/types';
  * 流程：从 SecureStore 获取最新 token → Token 刷新 → 并行3路配额API → 更新 store
  */
 export function useRefresh() {
-  const { updateAccount, setRefreshing, setError } = useAccountStore();
+  const updateAccount = useAccountStore((s) => s.updateAccount);
+  const setRefreshing = useAccountStore((s) => s.setRefreshing);
+  const setError = useAccountStore((s) => s.setError);
   
   // 使用 ref 缓存 AccountService 实例，避免重复创建
   const serviceRef = useRef<AccountService | null>(null);
   if (!serviceRef.current) {
     serviceRef.current = new AccountService(
-      axios,
+      undefined,
       () => undefined,
       () => undefined
     );

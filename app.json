@@ -7,7 +7,7 @@
   "scheme": "cockpittools",
   "userInterfaceStyle": "dark",
   "splash": {
-    "image": "./assets/splash-icon.png",
+    "image": "./assets/icon.png",
     "resizeMode": "contain",
     "backgroundColor": "#0F0E17"
   },
@@ -17,7 +17,7 @@
   },
   "android": {
     "adaptiveIcon": {
-      "foregroundImage": "./assets/adaptive-icon.png",
+      "foregroundImage": "./assets/icon.png",
       "backgroundColor": "#0F0E17"
     },
     "package": "com.cockpittools.mobile"
@@ -25,6 +25,17 @@
   "experiments": {
     "typedRoutes": true
   },
+  "plugins": [
+    [
+      "expo-build-properties",
+      {
+        "android": {
+          "enableProguardInReleaseBuilds": true,
+          "enableShrinkResourcesInReleaseBuilds": true
+        }
+      }
+    ]
+  ],
   "extra": {
     "apiEndpoint": "https://www.codebuddy.cn"
   }

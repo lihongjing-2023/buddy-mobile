@@ -139,14 +139,27 @@ jobs:
       - name: Prebuild Android project
         run: npx expo prebuild --platform android
 
-      - name: Build Android APK (production)
+      - name: Enable ABI split in build.gradle
+        working-directory: android
+        run: |
+          # 在 android.defaultConfig 中注入 ABI 拆分配置
+          sed -i '/defaultConfig {/a\        ndk {\n            abiFilters "arm64-v8a", "armeabi-v7a"\n        }\n        splits {\n            abi {\n                enable true\n                reset()\n                include "arm64-v8a", "armeabi-v7a"\n                universalApk false\n            }\n        }' app/build.gradle
+
+      - name: Build Android APK (split by ABI)
         working-directory: android
         run: ./gradlew assembleRelease
 
-      - name: Rename APK with version
+      - name: Rename APKs with version and ABI
         run: |
           mkdir -p release
-          cp android/app/build/outputs/apk/release/app-release.apk release/app-release-v${{ steps.version.outputs.VERSION }}.apk
+          VERSION=${{ steps.version.outputs.VERSION }}
+          # Gradle splits 产出路径: app-arm64-v8a-release.apk, app-armeabi-v7a-release.apk
+          for apk in android/app/build/outputs/apk/release/*-release.apk; do
+            abi=$(basename "$apk" | sed 's/app-\(.*\)-release\.apk/\1/')
+            cp "$apk" "release/app-${abi}-v${VERSION}.apk"
+            echo "Built: app-${abi}-v${VERSION}.apk"
+          done
+          ls -lh release/
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -170,10 +183,11 @@ jobs:
             - 提交: ${{ github.sha }}
             
             ### 下载
-            - 下载 `app-release-v${{ steps.version.outputs.VERSION }}.apk` 安装到您的Android设备
+            - `app-arm64-v8a-v${{ steps.version.outputs.VERSION }}.apk` — 64位设备（推荐，大多数现代手机）
+            - `app-armeabi-v7a-v${{ steps.version.outputs.VERSION }}.apk` — 32位设备（老旧手机）
             
             ### 安装说明
-            1. 下载APK文件
+            1. 根据设备架构下载对应的APK文件
             2. 在Android设备上允许"安装未知来源应用"
             3. 安装并运行
           files: release/*.apk

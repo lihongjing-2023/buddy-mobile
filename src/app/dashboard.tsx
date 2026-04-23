@@ -20,6 +20,7 @@ import { quotaHistoryStorage, type QuotaHistoryEntry } from '@/services/quota-hi
 import { parseQuotaRawData } from '@/modules/core/parser';
 import { QuotaLineChart } from '@/components/QuotaLineChart';
 import { useTheme } from '@/theme';
+import { runInBatches } from '@/modules/core/batch';
 
 /** 时间范围选项 */
 type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d';
@@ -34,7 +35,9 @@ const TIME_RANGE_OPTIONS: { label: string; value: TimeRange; hours: number }[] =
 
 export default function DashboardPage() {
   const { colors } = useTheme();
-  const { accounts, setRefreshing, setError } = useAccountStore();
+  const accounts = useAccountStore((s) => s.accounts);
+  const setRefreshing = useAccountStore((s) => s.setRefreshing);
+  const setError = useAccountStore((s) => s.setError);
   const { refreshAccount } = useRefresh();
   useAutoRefresh();
 
@@ -135,13 +138,12 @@ export default function DashboardPage() {
     setError(null);
 
     const batchSize = 2;
-    for (let i = 0; i < accounts.length; i += batchSize) {
-      if (i > 0) {
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-      const batch = accounts.slice(i, i + batchSize);
-      await Promise.allSettled(batch.map((acc) => refreshAccount(acc)));
-    }
+    await runInBatches(
+      accounts,
+      batchSize,
+      (acc) => refreshAccount(acc),
+      { delayMs: 1000 }
+    );
 
     setRefreshing([], false);
     await saveQuotaSnapshot();

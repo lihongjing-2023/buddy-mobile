@@ -63,7 +63,7 @@ export async function saveQuotaSnapshot() {
 }
 
 export function useAutoRefresh() {
-  const { accounts } = useAccountStore();
+  const accountsLength = useAccountStore((s) => s.accounts.length);
   const { refreshAccount } = useRefresh();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastRefreshRef = useRef<number>(0);
@@ -123,5 +123,5 @@ export function useAutoRefresh() {
         timerRef.current = null;
       }
     };
-  }, [accounts.length, doAutoRefresh]);
+  }, [accountsLength, doAutoRefresh]);
 }
