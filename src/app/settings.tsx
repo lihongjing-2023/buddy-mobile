@@ -12,11 +12,15 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { settingsStorage, type AppSettings } from '@/services/storage';
 import { useAccountStore } from '@/modules/account/account-store';
 import { useTheme, type ThemeMode } from '@/theme';
+import { getAppVersion } from '@/services/app-info';
+import { checkForUpdate, type UpdateInfo } from '@/modules/core/update-service';
 
 const REFRESH_OPTIONS = [
   { label: '关闭', value: 0 },
@@ -91,6 +95,34 @@ export default function SettingsPage() {
     }
     setIsCustomMode(false);
     updateSetting({ autoRefreshIntervalMinutes: mins });
+  };
+
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+
+  const handleCheckUpdate = async () => {
+    setIsCheckingUpdate(true);
+    try {
+      const info = await checkForUpdate();
+      if (info.hasUpdate) {
+        Alert.alert(
+          '发现新版本',
+          `v${info.latestVersion} 已发布${info.publishedAt ? ` (${new Date(info.publishedAt).toLocaleDateString()})` : ''}\n\n${info.body || '暂无更新说明'}`,
+          [
+            { text: '稍后再说', style: 'cancel' },
+            {
+              text: '前往下载',
+              onPress: () => Linking.openURL(info.htmlUrl),
+            },
+          ]
+        );
+      } else {
+        Alert.alert('已是最新版本', `当前版本 v${getAppVersion()}，无需更新`);
+      }
+    } catch (e: any) {
+      Alert.alert('检查失败', `无法获取更新信息：${e.message || '网络错误'}`);
+    } finally {
+      setIsCheckingUpdate(false);
+    }
   };
 
   return (
@@ -285,11 +317,26 @@ export default function SettingsPage() {
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>关于</Text>
         <View style={[styles.aboutCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
           <Text style={[styles.appName, { color: colors.textPrimary }]}>Cockpit Tools Mobile</Text>
-          <Text style={[styles.appVersion, { color: colors.textSecondary }]}>v1.0.0</Text>
+          <Text style={[styles.appVersion, { color: colors.textSecondary }]}>v{getAppVersion()}</Text>
           <Text style={[styles.appDesc, { color: colors.textSecondary }]}>
             WorkBuddy CN 账号管理工具{'\n'}
             支持额度查询、每日签到
           </Text>
+          <TouchableOpacity
+            style={[styles.updateBtn, { backgroundColor: colors.primary }]}
+            onPress={handleCheckUpdate}
+            disabled={isCheckingUpdate}
+            activeOpacity={0.7}
+          >
+            {isCheckingUpdate ? (
+              <ActivityIndicator size="small" color={colors.textOnPrimary} />
+            ) : (
+              <Ionicons name="cloud-download-outline" size={16} color={colors.textOnPrimary} />
+            )}
+            <Text style={[styles.updateBtnText, { color: colors.textOnPrimary }]}>
+              {isCheckingUpdate ? '检查中...' : '检查更新'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
@@ -393,6 +440,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginTop: 10,
+  },
+  updateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginTop: 16,
+  },
+  updateBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   refreshOptions: {
     flexDirection: 'row',

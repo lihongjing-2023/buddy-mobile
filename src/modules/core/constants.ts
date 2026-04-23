@@ -37,6 +37,9 @@ export const BACKGROUND_CHECKIN_TASK = 'background-checkin-task';
 /** 批量操作最大并发数 */
 export const BATCH_CONCURRENCY = 5;
 
+/** GitHub 仓库信息（用于检查更新） */
+export const GITHUB_REPO = 'lihongjing-2023/buddy-mobile' as const;
+
 // ==================== 套餐代码常量 ====================
 // 与 PC 端 cockpit-tools/src/types/codebuddy-suite.ts 完全对齐
 
