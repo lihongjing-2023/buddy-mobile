@@ -7,11 +7,14 @@
 import { GITHUB_REPO } from '@/modules/core/constants';
 import { getAppVersion } from '@/services/app-info';
 
-/** GitHub API 代理列表（国内加速），按优先级排序 */
+/** GitHub API 代理列表（国内加速），按测速优先级排序 */
 const GITHUB_API_PROXIES = [
-  'https://ghproxy.net',
+  'https://github.chenc.dev',
+  'https://github.dpik.top',
+  'https://gh.bugdey.us.kg',
+  'https://gh.felicity.ac.cn',
   'https://gh-proxy.com',
-  'https://ghps.cc',
+  'https://ghproxy.net',
 ] as const;
 
 /** 单个代理请求超时（毫秒） */
