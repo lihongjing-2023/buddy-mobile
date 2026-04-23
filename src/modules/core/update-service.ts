@@ -1,10 +1,21 @@
 /**
  * 应用更新服务
  * 通过 GitHub Releases API 检查最新版本
+ * 支持国内代理加速 + 直连 fallback
  */
 
 import { GITHUB_REPO } from '@/modules/core/constants';
 import { getAppVersion } from '@/services/app-info';
+
+/** GitHub API 代理列表（国内加速），按优先级排序 */
+const GITHUB_API_PROXIES = [
+  'https://ghproxy.net',
+  'https://gh-proxy.com',
+  'https://ghps.cc',
+] as const;
+
+/** 单个代理请求超时（毫秒） */
+const PROXY_TIMEOUT_MS = 8000;
 
 export interface UpdateInfo {
   /** 最新版本号（如 "1.0.3"） */
@@ -39,13 +50,36 @@ function compareVersions(a: string, b: string): number {
 }
 
 /**
- * 检查应用更新
- * @throws 网络错误时抛出异常
+ * 带超时的 fetch
  */
-export async function checkForUpdate(): Promise<UpdateInfo> {
-  const url = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
+function fetchWithTimeout(url: string, timeoutMs: number, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
 
-  const res = await fetch(url, {
+/**
+ * 尝试通过代理或直连获取 GitHub Release 数据
+ * 依次尝试：国内代理 → 直连 GitHub API
+ */
+async function fetchLatestRelease(): Promise<any> {
+  const apiPath = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
+
+  // 先尝试国内代理
+  for (const proxy of GITHUB_API_PROXIES) {
+    try {
+      const proxyUrl = `${proxy}/${apiPath}`;
+      const res = await fetchWithTimeout(proxyUrl, PROXY_TIMEOUT_MS, {
+        headers: { Accept: 'application/vnd.github+json' },
+      });
+      if (res.ok) return await res.json();
+    } catch {
+      // 此代理不可用，尝试下一个
+    }
+  }
+
+  // 所有代理都失败，直连 GitHub API
+  const res = await fetchWithTimeout(apiPath, 15000, {
     headers: { Accept: 'application/vnd.github+json' },
   });
 
@@ -53,7 +87,15 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
     throw new Error(`GitHub API 返回 ${res.status}`);
   }
 
-  const data = await res.json();
+  return await res.json();
+}
+
+/**
+ * 检查应用更新
+ * @throws 网络错误时抛出异常
+ */
+export async function checkForUpdate(): Promise<UpdateInfo> {
+  const data = await fetchLatestRelease();
 
   const latestVersion = (data.tag_name as string).replace(/^v/, '');
   const currentVersion = getAppVersion();
