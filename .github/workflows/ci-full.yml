@@ -120,7 +120,7 @@ jobs:
         run: npm ci
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           api-level: '34'
           build-tools: '34.0.0'
