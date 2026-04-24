@@ -5,7 +5,7 @@
 [![Expo](https://img.shields.io/badge/Expo-SDK_52-000?logo=expo)](https://expo.dev/)
 [![React Native](https://img.shields.io/badge/React_Native-0.76.9-61dafb?logo=react)](https://reactnative.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178c6?logo=typescript)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-green.svg)](LICENSE)
 
 一个专为 WorkBuddy CN 用户设计的跨平台移动端应用，支持账号额度查询、每日签到、配额分组展示等功能。基于 **Expo Managed Workflow** 构建，可同时运行于 iOS 与 Android。
 
@@ -155,7 +155,7 @@ cockpit-tools-mobile/
 
 ## 🔄 与 PC 端功能对比
 
-> 对比项目：[cockpit-tools](https://github.com/user/cockpit-tools) (Tauri + React)
+> 对比项目：[cockpit-tools](https://github.com/jlcodes99/cockpit-tools) (Tauri + React)
 
 | 功能 | PC 端 | 移动端 | 说明 |
 |------|:-----:|:------:|------|
@@ -195,7 +195,7 @@ A: 移动端后台签到受限于系统限制（iOS 后台最多 30 秒，Androi
 
 ## 🔗 相关链接
 
-- **PC 端项目**：[cockpit-tools](https://github.com/user/cockpit-tools)
+- **PC 端项目**：[cockpit-tools](https://github.com/jlcodes99/cockpit-tools)
 - **Expo 文档**：https://docs.expo.dev/
 - **React Native 文档**：https://reactnative.dev/
 - **WorkBuddy CN 官网**：https://workbuddy.cn/
@@ -216,7 +216,19 @@ A: 移动端后台签到受限于系统限制（iOS 后台最多 30 秒，Androi
 
 ## 📄 许可证
 
-本项目基于 **MIT** 许可证开源，详见 [LICENSE](LICENSE) 文件。
+本项目基于 **CC BY-NC-SA 4.0** 许可证开源，详见 [LICENSE](LICENSE) 文件。
+
+PC 端关联项目：[cockpit-tools](https://github.com/jlcodes99/cockpit-tools)
+
+### ⚠️ 免责声明
+
+> 本项目仅供个人学习和研究使用。使用本项目即表示您同意：
+> - 未获得作者书面商业授权前，不将本项目用于任何商业用途
+> - 承担使用本项目的所有风险和责任
+> - 遵守相关服务条款和法律法规
+> - 项目作者对因使用本项目而产生的任何直接或间接损失不承担责任
+>
+> **⚠️ 风险提示：** 本工具涉及通过第三方软件调用 CodeBuddy CN 的 API（如签到、额度查询等），可能违反《[腾讯云代码助手软件许可及服务协议](https://www.codebuddy.cn/agreement/)》第 8.2 条关于"通过非腾讯云授权的第三方软件、插件、外挂登录或使用本软件"的约定。使用本工具可能导致账号被限制、封禁或其他处罚，请自行评估风险后再决定是否使用。
 
 ---
 

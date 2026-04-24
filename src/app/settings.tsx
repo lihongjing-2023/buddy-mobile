@@ -339,6 +339,36 @@ export default function SettingsPage() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* 免责声明 */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>免责声明</Text>
+        <View style={[styles.disclaimerCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+          <View style={styles.disclaimerItem}>
+            <Ionicons name="warning-outline" size={14} color={colors.textSecondary} />
+            <Text style={[styles.disclaimerText, { color: colors.textSecondary }]}>
+              本工具仅供个人学习和研究使用
+            </Text>
+          </View>
+          <View style={styles.disclaimerItem}>
+            <Ionicons name="alert-circle-outline" size={14} color="#FF9500" />
+            <Text style={[styles.disclaimerText, { color: colors.textSecondary }]}>
+              通过第三方工具调用 API 可能违反腾讯云代码助手服务协议，存在账号被限制或封禁的风险
+            </Text>
+          </View>
+          <View style={styles.disclaimerItem}>
+            <Ionicons name="shield-checkmark-outline" size={14} color={colors.textSecondary} />
+            <Text style={[styles.disclaimerText, { color: colors.textSecondary }]}>
+              请自行评估风险，遵守相关服务条款和法律法规
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => Linking.openURL('https://cloud.tencent.com/document/product/1769/10783')}>
+            <Text style={[styles.disclaimerLink, { color: colors.primary }]}>
+              查看腾讯云代码助手服务协议 →
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -518,5 +548,26 @@ const styles = StyleSheet.create({
   currentHint: {
     fontSize: 12,
     marginTop: 8,
+  },
+  disclaimerCard: {
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    gap: 10,
+  },
+  disclaimerItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  disclaimerText: {
+    fontSize: 12,
+    lineHeight: 18,
+    flex: 1,
+  },
+  disclaimerLink: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
   },
 });
