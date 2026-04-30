@@ -44,6 +44,71 @@ export interface HttpClient {
   post<T>(url: string, data?: unknown, options?: RequestOptions): Promise<ApiResponse<T>>;
 }
 
+// ==================== 重试工具 ====================
+
+/** 重试配置 */
+export interface RetryOptions {
+  /** 最大重试次数（不含首次请求） */
+  maxRetries?: number;
+  /** 初始延迟 (ms) */
+  initialDelayMs?: number;
+  /** 退避倍数 */
+  backoffMultiplier?: number;
+  /** 最大延迟 (ms) */
+  maxDelayMs?: number;
+  /** 判断是否可重试的错误（默认对网络错误和 5xx 重试） */
+  shouldRetry?: (error: unknown, attempt: number) => boolean;
+}
+
+const DEFAULT_RETRY_OPTIONS: Required<Omit<RetryOptions, 'shouldRetry'>> & { shouldRetry?: RetryOptions['shouldRetry'] } = {
+  maxRetries: 2,
+  initialDelayMs: 1000,
+  backoffMultiplier: 2,
+  maxDelayMs: 10_000,
+  shouldRetry: (error: unknown) => {
+    // 网络超时、连接失败 → 可重试
+    const msg = (error as Error)?.message || '';
+    if (/超时|timeout|abort|network|fetch|ECONNREFUSED|ENOTFOUND|ETIMEDOUT/i.test(msg)) {
+      return true;
+    }
+    // HTTP 5xx → 可重试
+    if (/^HTTP\s5\d\d/i.test(msg)) {
+      return true;
+    }
+    return false;
+  },
+};
+
+/**
+ * 带指数退避的通用重试封装
+ * 仅对符合 shouldRetry 条件的瞬态错误重试，业务错误不重试
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  options?: RetryOptions
+): Promise<T> {
+  const opts = { ...DEFAULT_RETRY_OPTIONS, ...options };
+  const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs, shouldRetry } = opts;
+
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      // 最后一次尝试或不可重试的错误 → 直接抛出
+      if (attempt >= maxRetries || !shouldRetry?.(err, attempt)) {
+        throw err;
+      }
+      // 计算退避延迟
+      const delay = Math.min(initialDelayMs * Math.pow(backoffMultiplier, attempt), maxDelayMs);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  // 理论上不会走到这里，但 TypeScript 需要
+  throw lastError;
+}
+
 // ==================== 工具函数 ====================
 
 /** 带超时的 fetch */
@@ -109,7 +174,7 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
     return headers;
   }
 
-  /** 执行请求（带 401 自动刷新重试） */
+  /** 执行请求（带 401 自动刷新重试 + 瞬态错误自动重试） */
   async function request<T>(
     method: string,
     url: string,
@@ -120,58 +185,60 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
     const headers = buildHeaders(requestOptions?.headers);
     const timeout = requestOptions?.timeout ?? 30_000;
 
-    const init: RequestInit = {
-      method,
-      headers,
-    };
+    return withRetry(async () => {
+      const init: RequestInit = {
+        method,
+        headers,
+      };
 
-    if (data !== undefined && method !== 'GET') {
-      init.body = JSON.stringify(data);
-    }
-
-    const response = await fetchWithTimeout(fullUrl, init, timeout);
-    const body = await parseResponse<T>(response);
-
-    // 401 自动刷新 Token
-    if (response.status === 401 && !url.includes('auth/token/refresh')) {
-      const rt = options.getRefreshToken();
-      if (!rt) {
-        throw new Error('无 refresh_token，认证失败');
+      if (data !== undefined && method !== 'GET') {
+        init.body = JSON.stringify(data);
       }
 
-      // 使用并发锁，确保只执行一次 refresh
-      if (!refreshPromise) {
-        refreshPromise = doTokenRefresh(rt)
-          .then((tokenData) => {
-            options.onTokenRefreshed(tokenData);
-            return tokenData;
-          })
-          .finally(() => {
-            refreshPromise = null;
-          });
-      }
+      const response = await fetchWithTimeout(fullUrl, init, timeout);
+      const body = await parseResponse<T>(response);
 
-      try {
-        const newTokens = await refreshPromise;
-        // 用新 token 重试原请求
-        const retryHeaders = { ...headers, Authorization: `Bearer ${newTokens.accessToken}` };
-        const retryInit: RequestInit = {
-          method,
-          headers: retryHeaders,
-        };
-        if (data !== undefined && method !== 'GET') {
-          retryInit.body = JSON.stringify(data);
+      // 401 自动刷新 Token
+      if (response.status === 401 && !url.includes('auth/token/refresh')) {
+        const rt = options.getRefreshToken();
+        if (!rt) {
+          throw new Error('无 refresh_token，认证失败');
         }
 
-        const retryResponse = await fetchWithTimeout(fullUrl, retryInit, timeout);
-        return parseResponse<T>(retryResponse);
-      } catch (refreshErr) {
-        console.error('[HttpClient] Token refresh failed:', refreshErr);
-        throw refreshErr;
-      }
-    }
+        // 使用并发锁，确保只执行一次 refresh
+        if (!refreshPromise) {
+          refreshPromise = doTokenRefresh(rt)
+            .then((tokenData) => {
+              options.onTokenRefreshed(tokenData);
+              return tokenData;
+            })
+            .finally(() => {
+              refreshPromise = null;
+            });
+        }
 
-    return body;
+        try {
+          const newTokens = await refreshPromise;
+          // 用新 token 重试原请求
+          const retryHeaders = { ...headers, Authorization: `Bearer ${newTokens.accessToken}` };
+          const retryInit: RequestInit = {
+            method,
+            headers: retryHeaders,
+          };
+          if (data !== undefined && method !== 'GET') {
+            retryInit.body = JSON.stringify(data);
+          }
+
+          const retryResponse = await fetchWithTimeout(fullUrl, retryInit, timeout);
+          return parseResponse<T>(retryResponse);
+        } catch (refreshErr) {
+          console.error('[HttpClient] Token refresh failed:', refreshErr);
+          throw refreshErr;
+        }
+      }
+
+      return body;
+    }, { maxRetries: 2, initialDelayMs: 1000 });
   }
 
   return {
@@ -225,48 +292,54 @@ export function buildQuotaHeaders(
 
 // ==================== 便捷方法：无客户端直接请求 ====================
 
-/** 直接 POST 请求（不经过 createHttpClient 实例） */
+/** 直接 POST 请求（不经过 createHttpClient 实例，带自动重试） */
 export async function postJson<T>(
   url: string,
   data?: unknown,
   headers?: Record<string, string>,
-  timeout = 30_000
+  timeout = 30_000,
+  retryOptions?: RetryOptions
 ): Promise<ApiResponse<T>> {
-  const fullUrl = url.startsWith('http') ? url : `${API_ENDPOINTS.BASE}${url}`;
-  const response = await fetchWithTimeout(
-    fullUrl,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
+  return withRetry(async () => {
+    const fullUrl = url.startsWith('http') ? url : `${API_ENDPOINTS.BASE}${url}`;
+    const response = await fetchWithTimeout(
+      fullUrl,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: data !== undefined ? JSON.stringify(data) : JSON.stringify({}),
       },
-      body: data !== undefined ? JSON.stringify(data) : JSON.stringify({}),
-    },
-    timeout
-  );
+      timeout
+    );
 
-  return parseResponse<T>(response);
+    return parseResponse<T>(response);
+  }, retryOptions);
 }
 
-/** 直接 GET 请求（不经过 createHttpClient 实例） */
+/** 直接 GET 请求（不经过 createHttpClient 实例，带自动重试） */
 export async function getJson<T>(
   url: string,
   headers?: Record<string, string>,
-  timeout = 30_000
+  timeout = 30_000,
+  retryOptions?: RetryOptions
 ): Promise<ApiResponse<T>> {
-  const fullUrl = url.startsWith('http') ? url : `${API_ENDPOINTS.BASE}${url}`;
-  const response = await fetchWithTimeout(
-    fullUrl,
-    {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
+  return withRetry(async () => {
+    const fullUrl = url.startsWith('http') ? url : `${API_ENDPOINTS.BASE}${url}`;
+    const response = await fetchWithTimeout(
+      fullUrl,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
       },
-    },
-    timeout
-  );
+      timeout
+    );
 
-  return parseResponse<T>(response);
+    return parseResponse<T>(response);
+  }, retryOptions);
 }

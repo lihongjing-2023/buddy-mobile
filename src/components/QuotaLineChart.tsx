@@ -29,7 +29,7 @@ interface QuotaLineChartProps {
   height?: number;
 }
 
-const CHART_PADDING = { top: 20, right: 16, bottom: 40, left: 50 };
+const CHART_PADDING = { top: 20, right: 16, bottom: 48, left: 50 };
 
 export function QuotaLineChart({ lines, yMax, width, height = 200 }: QuotaLineChartProps) {
   const { colors } = useTheme();
@@ -131,25 +131,55 @@ export function QuotaLineChart({ lines, yMax, width, height = 200 }: QuotaLineCh
           );
         })}
 
-        {/* X 轴标签（最多6个） */}
+        {/* X 轴标签（最多4个，自适应标签长度） */}
         {lines[0]?.data
           ?.filter((_, idx, arr) => {
-            if (arr.length <= 6) return true;
-            const step = Math.ceil(arr.length / 6);
+            const maxLabels = 4;
+            if (arr.length <= maxLabels) return true;
+            const step = Math.ceil(arr.length / maxLabels);
             return idx % step === 0 || idx === arr.length - 1;
           })
-          .map((p, i) => (
-            <SvgText
-              key={`xlabel-${i}`}
-              x={toSvgX(p.x)}
-              y={height - 6}
-              textAnchor="middle"
-              fontSize={9}
-              fill={colors.textSecondary}
-            >
-              {p.label}
-            </SvgText>
-          ))}
+          .map((p, i) => {
+            // 长标签（含日期）：拆成两行显示
+            const parts = p.label.split(' ');
+            const hasDatePart = parts.length > 1;
+            return (
+              <SvgText
+                key={`xlabel-${i}`}
+                x={toSvgX(p.x)}
+                y={height - 6}
+                textAnchor="middle"
+                fontSize={8}
+                fill={colors.textSecondary}
+              >
+                {hasDatePart ? parts[0] : p.label}
+              </SvgText>
+            );
+          })}
+        {/* 日期标签的第二行（时间部分） */}
+        {lines[0]?.data
+          ?.filter((_, idx, arr) => {
+            const maxLabels = 4;
+            if (arr.length <= maxLabels) return true;
+            const step = Math.ceil(arr.length / maxLabels);
+            return idx % step === 0 || idx === arr.length - 1;
+          })
+          .filter((p) => p.label.includes(' '))
+          .map((p, i) => {
+            const timePart = p.label.split(' ')[1];
+            return (
+              <SvgText
+                key={`xlabel-time-${i}`}
+                x={toSvgX(p.x)}
+                y={height + 6}
+                textAnchor="middle"
+                fontSize={7}
+                fill={colors.textSecondary}
+              >
+                {timePart}
+              </SvgText>
+            );
+          })}
       </Svg>
 
       {/* 图例 */}

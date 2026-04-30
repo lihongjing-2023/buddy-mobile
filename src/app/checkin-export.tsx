@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useAccountStore } from '@/modules/account/account-store';
 import { generateCheckinShellScript } from '@/modules/checkin/export-shell';
 import { useTheme } from '@/theme';
@@ -93,22 +94,34 @@ export default function CheckinExportPage() {
     }
   }, [validateAndGetParams]);
 
-  // 保存为文件（使用 expo-file-system 写入缓存目录）
+  // 保存为文件（通过系统分享面板保存到下载目录等位置）
   const handleSaveFile = useCallback(async () => {
     const params = validateAndGetParams();
     if (!params) return;
 
     try {
       const result = generateCheckinShellScript(params.selectedAccounts, params.hour, params.minute);
+
+      // 先写入缓存临时文件
       const filePath = `${FileSystem.cacheDirectory}${result.filename}`;
       await FileSystem.writeAsStringAsync(filePath, result.script, {
         encoding: FileSystem.EncodingType.UTF8,
       });
 
-      Alert.alert(
-        '保存成功',
-        `脚本已保存到缓存目录\n路径: ${filePath}\n\n请通过文件管理器或 scp 将脚本上传到 Linux 服务器`,
-      );
+      // 检查分享功能是否可用
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('提示', '当前设备不支持文件分享，脚本已复制到剪贴板');
+        await Clipboard.setStringAsync(result.script);
+        return;
+      }
+
+      // 通过系统分享面板让用户选择保存位置
+      await Sharing.shareAsync(filePath, {
+        mimeType: 'text/x-shellscript',
+        dialogTitle: '保存签到脚本',
+        UTI: 'public.shell-script',
+      });
     } catch (err) {
       Alert.alert('保存失败', (err as Error).message);
     }
@@ -250,7 +263,7 @@ export default function CheckinExportPage() {
           onPress={handleSaveFile}
           disabled={selectedCount === 0}
         >
-          <Ionicons name="download-outline" size={20} color={colors.primary} />
+          <Ionicons name="alarm-outline" size={20} color={colors.primary} />
           <Text style={[styles.saveButtonText, { color: colors.primary }]}>
             保存为文件
           </Text>

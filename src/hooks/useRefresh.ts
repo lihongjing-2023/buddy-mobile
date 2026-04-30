@@ -11,6 +11,7 @@ import { tokenStorage } from '@/services/storage';
 import { AccountService } from '@/modules/account/account-service';
 import { CheckinService } from '@/modules/checkin/checkin-service';
 import { isTokenExpiringSoon } from '@/modules/core/quota-model';
+import { withRetry } from '@/services/http-client';
 import type { WorkbuddyAccount } from '@/modules/core/types';
 
 /**
@@ -49,8 +50,12 @@ export function useRefresh() {
           refresh_token: secureRt || account.refresh_token,
         };
 
+        // 使用 withRetry 包裹核心刷新逻辑，对网络瞬态错误自动重试
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- ref 在上方 if 块中已确保初始化
-        const { updatedAccount, quotaRaw } = await serviceRef.current!.refreshAccount(freshAccount);
+        const { updatedAccount, quotaRaw } = await withRetry(
+          () => serviceRef.current!.refreshAccount(freshAccount),
+          { maxRetries: 2, initialDelayMs: 1500, backoffMultiplier: 2 }
+        );
 
         // 配额刷新完成后，并行获取签到状态（失败不影响主流程）
         const checkinStatusPromise = CheckinService.fetchCheckinStatus(

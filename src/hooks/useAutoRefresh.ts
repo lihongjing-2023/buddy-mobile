@@ -12,7 +12,7 @@ import { quotaHistoryStorage, type QuotaHistoryEntry } from '@/services/quota-hi
 import { parseQuotaRawData } from '@/modules/core/parser';
 import { getQuotaCategoryGroups } from '@/modules/core/quota-model';
 
-/** 从当前账号列表计算汇总额度并保存历史快照 */
+/** 从当前账号列表计算汇总额度并保存历史快照（含异常数据过滤） */
 export async function saveQuotaSnapshot() {
   const { accounts } = useAccountStore.getState();
 
@@ -48,6 +48,22 @@ export async function saveQuotaSnapshot() {
           categorySums[cat].used += g.used;
           categorySums[cat].remain += g.remain;
         }
+      }
+    }
+  }
+
+  // 异常数据过滤：与最近一条记录对比，总额骤降超过 50% 视为脏数据，跳过保存
+  const recentEntries = await quotaHistoryStorage.getRecent(1);
+  if (recentEntries.length > 0) {
+    const lastEntry = recentEntries[0];
+    const lastTotal = lastEntry.grandTotal;
+    if (lastTotal > 0) {
+      const dropRatio = grandTotal / lastTotal;
+      if (dropRatio < 0.5) {
+        console.warn(
+          `[saveQuotaSnapshot] 检测到异常数据：总额从 ${lastTotal} 骤降至 ${grandTotal}（比例 ${dropRatio.toFixed(2)}），跳过此快照`
+        );
+        return;
       }
     }
   }

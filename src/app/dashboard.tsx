@@ -63,6 +63,37 @@ export default function DashboardPage() {
     return history.filter((e) => e.timestamp >= cutoff);
   }, [history, timeRange]);
 
+  // 异常数据过滤：移除与相邻点偏差过大的数据点（骤降超过 40%）
+  const cleanedHistory = useMemo(() => {
+    if (filteredHistory.length <= 2) return filteredHistory;
+    const result: typeof filteredHistory = [filteredHistory[0]];
+    for (let i = 1; i < filteredHistory.length; i++) {
+      const prev = result[result.length - 1];
+      const curr = filteredHistory[i];
+      // 骤降检测：当前总额 < 前一个有效点的 60% 视为异常
+      if (prev.grandTotal > 0 && curr.grandTotal / prev.grandTotal < 0.6) {
+        continue; // 跳过异常点
+      }
+      result.push(curr);
+    }
+    return result;
+  }, [filteredHistory]);
+
+  /** 简单移动平均平滑（窗口大小 3） */
+  const smoothValues = useCallback(
+    (values: number[], windowSize = 3): number[] => {
+      if (values.length <= windowSize) return values;
+      const half = Math.floor(windowSize / 2);
+      return values.map((_, i) => {
+        const start = Math.max(0, i - half);
+        const end = Math.min(values.length, i + half + 1);
+        const slice = values.slice(start, end);
+        return slice.reduce((sum, v) => sum + v, 0) / slice.length;
+      });
+    },
+    []
+  );
+
   // 计算当前汇总数据
   const summary = useMemo(() => {
     let grandTotal = 0;
@@ -88,33 +119,53 @@ export default function DashboardPage() {
     return { grandTotal, grandUsed, grandRemain, usedPercent, remainPercent };
   }, [accounts]);
 
-  // 构建折线图数据
+  // 构建折线图数据（使用清洗后的历史 + 平滑处理）
   const chartData = useMemo(() => {
-    if (filteredHistory.length === 0) return { lines: [], yMax: 0 };
+    if (cleanedHistory.length === 0) return { lines: [], yMax: 0 };
 
     const plotWidth = 1; // 归一化到 0~1 之间
-    const entryCount = filteredHistory.length;
+    const entryCount = cleanedHistory.length;
     const step = entryCount > 1 ? plotWidth / (entryCount - 1) : 0;
+
+    // 提取原始数值并应用平滑
+    const rawTotals = cleanedHistory.map((e) => e.grandTotal);
+    const rawUseds = cleanedHistory.map((e) => e.grandUsed);
+    const rawRemains = cleanedHistory.map((e) => e.grandRemain);
+
+    const smoothedTotals = smoothValues(rawTotals);
+    const smoothedUseds = smoothValues(rawUseds);
+    const smoothedRemains = smoothValues(rawRemains);
 
     const totalPoints: { x: number; y: number; value: number; label: string }[] = [];
     const usedPoints: { x: number; y: number; value: number; label: string }[] = [];
     const remainPoints: { x: number; y: number; value: number; label: string }[] = [];
 
-    filteredHistory.forEach((entry, idx) => {
+    cleanedHistory.forEach((entry, idx) => {
       const x = idx * step;
       const date = new Date(entry.timestamp);
-      // 短标签用于 X 轴
-      const shortLabel = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+      // 根据时间范围自适应 X 轴标签格式
+      let shortLabel: string;
+      const hh = String(date.getHours()).padStart(2, '0');
+      const mm = String(date.getMinutes()).padStart(2, '0');
+      if (timeRange === '7d' || timeRange === '30d') {
+        // 长范围：显示 MM/DD HH:mm
+        const mo = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        shortLabel = `${mo}/${dd} ${hh}:${mm}`;
+      } else {
+        // 短范围：只显示 HH:mm
+        shortLabel = `${hh}:${mm}`;
+      }
 
-      totalPoints.push({ x, y: entry.grandTotal, value: entry.grandTotal, label: shortLabel });
-      usedPoints.push({ x, y: entry.grandUsed, value: entry.grandUsed, label: shortLabel });
-      remainPoints.push({ x, y: entry.grandRemain, value: entry.grandRemain, label: shortLabel });
+      totalPoints.push({ x, y: smoothedTotals[idx], value: entry.grandTotal, label: shortLabel });
+      usedPoints.push({ x, y: smoothedUseds[idx], value: entry.grandUsed, label: shortLabel });
+      remainPoints.push({ x, y: smoothedRemains[idx], value: entry.grandRemain, label: shortLabel });
     });
 
     const yMax = Math.max(
-      ...filteredHistory.map((e) => e.grandTotal),
-      ...filteredHistory.map((e) => e.grandUsed),
-      ...filteredHistory.map((e) => e.grandRemain),
+      ...smoothedTotals,
+      ...smoothedUseds,
+      ...smoothedRemains,
       1
     ) * 1.1;
 
@@ -126,7 +177,7 @@ export default function DashboardPage() {
       ],
       yMax,
     };
-  }, [filteredHistory]);
+  }, [cleanedHistory, smoothValues, timeRange]);
 
   /** 手动刷新 */
   const onRefresh = useCallback(async () => {
@@ -222,7 +273,7 @@ export default function DashboardPage() {
       {/* ====== 总额度趋势图 ====== */}
       <View style={[styles.chartSection, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
         <Text style={[styles.chartTitle, { color: colors.textPrimary }]}>额度趋势</Text>
-        {filteredHistory.length > 1 ? (
+        {cleanedHistory.length > 1 ? (
           <QuotaLineChart
             lines={chartData.lines}
             yMax={chartData.yMax}
