@@ -82,7 +82,7 @@ jobs:
   build-android:
     name: Build Android APK (Local)
     runs-on: ubuntu-latest
-    # 手动触发 或 定时触发时检查前一天是否有commit
+    # 手动触发 或 定时触发时检查是否需要构建
     if: |
       (github.event_name == 'workflow_dispatch' && inputs.build_android == true) ||
       (github.event_name == 'schedule' && 
@@ -91,25 +91,48 @@ jobs:
       contents: write
 
     steps:
-      - name: Check if there were commits in the last 24 hours
-        id: check_commits
+      - name: Check if build is needed
+        id: check_build
         if: github.event_name == 'schedule'
         run: |
-          # 获取24小时前的日期
-          ONE_DAY_AGO=$(date -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
-          echo "Checking commits since: $ONE_DAY_AGO"
+          # 获取 main 分支最新 commit SHA
+          LATEST_SHA=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/main" | jq -r '.sha')
+          echo "Latest commit on main: $LATEST_SHA"
+
+          # 获取最新 Release 对应的 tag，再取该 tag 指向的 commit SHA
+          LATEST_RELEASE_TAG=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name // empty')
           
-          # 获取最近24小时的commit数量
-          COMMIT_COUNT=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/commits?since=$ONE_DAY_AGO&sha=main" | \
-            jq length)
-          
-          echo "Commits in last 24 hours: $COMMIT_COUNT"
-          echo "commit_count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
-          
-          if [ "$COMMIT_COUNT" -eq "0" ]; then
-            echo "No commits in last 24 hours, skipping build"
-            exit 78  # GitHub Actions的特殊退出码，表示跳过
+          if [ -z "$LATEST_RELEASE_TAG" ]; then
+            echo "No existing release found, need to build"
+            echo "need_build=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Latest release tag: $LATEST_RELEASE_TAG"
+          RELEASE_SHA=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/git/ref/tags/$LATEST_RELEASE_TAG" | jq -r '.object.sha // empty')
+
+          # 如果 tag 指向的是 annotated tag，需要解引用到 commit
+          if [ -n "$RELEASE_SHA" ]; then
+            TAG_TYPE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/git/tags/$RELEASE_SHA" | jq -r '.object.type // empty' 2>/dev/null || echo "")
+            if [ "$TAG_TYPE" = "commit" ]; then
+              RELEASE_SHA=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                "https://api.github.com/repos/${{ github.repository }}/git/tags/$RELEASE_SHA" | jq -r '.object.sha')
+            fi
+          fi
+
+          echo "Latest release commit: $RELEASE_SHA"
+
+          if [ "$LATEST_SHA" = "$RELEASE_SHA" ]; then
+            echo "Latest release is up-to-date with main, skipping build"
+            echo "need_build=false" >> $GITHUB_OUTPUT
+            exit 78  # GitHub Actions 特殊退出码，表示跳过
+          else
+            echo "New commits found since last release, need to build"
+            echo "need_build=true" >> $GITHUB_OUTPUT
           fi
 
       - uses: actions/checkout@v4
