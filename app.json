@@ -1,7 +1,7 @@
 {
   "name": "cockpit-tools-mobile",
   "slug": "cockpit-tools-mobile",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "orientation": "portrait",
   "icon": "./assets/icon.png",
   "scheme": "cockpittools",
