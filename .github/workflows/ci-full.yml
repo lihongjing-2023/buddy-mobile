@@ -125,7 +125,8 @@ jobs:
       - name: Resolve version
         id: version
         run: |
-          if [ "${{ inputs.bump_version || 'true' }}" = "true" ]; then
+          # schedule 触发或手动勾选 bump_version 时递增版本号；手动取消勾选时跳过
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.bump_version }}" = "true" ]; then
             echo "Bumping patch version..."
             npm version patch -m "chore: bump version to %s"
             NEW_VERSION=$(node -p "require('./package.json').version")
