@@ -74,8 +74,8 @@ ENABLE_LOGGING=${enableLogging}
 RANDOM_DELAY=${randomDelay}
 
 # 从 CHECKIN_TIME 提取小时和分钟
-HOUR=$(echo "${CHECKIN_TIME}" | cut -d: -f1)
-MINUTE=$(echo "${CHECKIN_TIME}" | cut -d: -f2)
+HOUR=\$(echo "\${CHECKIN_TIME}" | cut -d: -f1)
+MINUTE=\$(echo "\${CHECKIN_TIME}" | cut -d: -f2)
 
 # API 端点
 API_BASE="${API_ENDPOINTS.BASE}"
