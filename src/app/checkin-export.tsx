@@ -13,7 +13,6 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system';
@@ -23,7 +22,6 @@ import { useTheme } from '@/theme';
 import type { WorkbuddyAccount } from '@/modules/core/types';
 
 export default function CheckinExportPage() {
-  const router = useRouter();
   const accounts = useAccountStore((s) => s.accounts);
   const { colors } = useTheme();
 

@@ -268,7 +268,8 @@ case "\${1}" in
         log_message "  安装定时: bash \$(basename \${0}) --install-cron"
         log_message "  查看帮助: bash \$(basename \${0}) --help"
         ;;
-esac
+esac`;
+
   }
 
   return {
