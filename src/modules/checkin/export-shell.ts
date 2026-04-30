@@ -270,8 +270,6 @@ case "\${1}" in
         ;;
 esac`;
 
-  }
-
   return {
     script: scriptContent,
     filename: fileName,
