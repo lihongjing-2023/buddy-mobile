@@ -209,7 +209,7 @@ jobs:
       - name: Enable ABI split in build.gradle
         working-directory: android
         run: |
-          if [ "${{ inputs.build_armeabi_v7a || 'true' }}" = "true" ]; then
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.build_armeabi_v7a }}" = "true" ]; then
             ABI_INCLUDE='"arm64-v8a", "armeabi-v7a"'
             echo "Building both arm64-v8a and armeabi-v7a"
           else
@@ -247,7 +247,7 @@ jobs:
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
           NOTES="## Android APK Release\n\n### 版本信息\n- 版本号: v${VERSION}\n- 构建时间: ${{ github.event.head_commit.timestamp }}\n- 提交: ${{ github.sha }}\n\n### 下载\n- \`app-arm64-v8a-v${VERSION}.apk\` — 64位设备（推荐，大多数现代手机）"
-          if [ "${{ inputs.build_armeabi_v7a || 'true' }}" = "true" ]; then
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.build_armeabi_v7a }}" = "true" ]; then
             NOTES="${NOTES}\n- \`app-armeabi-v7a-v${VERSION}.apk\` — 32位设备（老旧手机）"
           fi
           NOTES="${NOTES}\n\n### 安装说明\n1. 根据设备架构下载对应的APK文件\n2. 在Android设备上允许\"安装未知来源应用\"\n3. 安装并运行"
