@@ -14,6 +14,11 @@ on:
         required: true
         default: true
         type: boolean
+      bump_version:
+        description: '递增版本号 (取消勾选可重新构建当前版本)'
+        required: true
+        default: true
+        type: boolean
   
   # 定时触发：每天北京时间0点(UTC 16:00)检查前一天是否有更新
   schedule:
@@ -117,16 +122,23 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump patch version
+      - name: Resolve version
         id: version
         run: |
-          # 递增 patch 版本号
-          npm version patch -m "chore: bump version to %s"
-          # 同步到 app.json
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          node -e "const f='app.json'; const c=JSON.parse(require('fs').readFileSync(f,'utf8')); c.version='$NEW_VERSION'; require('fs').writeFileSync(f, JSON.stringify(c, null, 2)+'\n');"
-          # 推送版本号变更和 tag
-          git push --follow-tags
+          if [ "${{ inputs.bump_version || 'true' }}" = "true" ]; then
+            echo "Bumping patch version..."
+            npm version patch -m "chore: bump version to %s"
+            NEW_VERSION=$(node -p "require('./package.json').version")
+            node -e "const f='app.json'; const c=JSON.parse(require('fs').readFileSync(f,'utf8')); c.version='$NEW_VERSION'; require('fs').writeFileSync(f, JSON.stringify(c, null, 2)+'\n');"
+            git push --follow-tags
+          else
+            echo "Skipping version bump, using current version..."
+            NEW_VERSION=$(node -p "require('./package.json').version")
+            if ! git tag -l "v$NEW_VERSION" | grep -q .; then
+              git tag "v$NEW_VERSION"
+              git push origin "v$NEW_VERSION"
+            fi
+          fi
           echo "VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "version=$NEW_VERSION"
 
