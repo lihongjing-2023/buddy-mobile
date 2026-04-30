@@ -59,12 +59,18 @@ export interface AppSettings {
   autoRefreshIntervalMinutes: number;
   backgroundCheckinEnabled: boolean;
   backgroundCheckinHour: number; // 24h format
+  /** GitHub API 代理镜像列表（为空时使用内置默认值） */
+  apiMirrors: string[];
+  /** GitHub 下载代理镜像列表（为空时使用内置默认值） */
+  downloadMirrors: string[];
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   autoRefreshIntervalMinutes: 60,
   backgroundCheckinEnabled: false,
   backgroundCheckinHour: 9, // 早上9点
+  apiMirrors: [],
+  downloadMirrors: [],
 };
 
 export const accountStorage = {

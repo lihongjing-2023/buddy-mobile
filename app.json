@@ -20,7 +20,8 @@
       "foregroundImage": "./assets/icon.png",
       "backgroundColor": "#0F0E17"
     },
-    "package": "com.cockpittools.mobile"
+    "package": "com.cockpittools.mobile",
+    "permissions": ["REQUEST_INSTALL_PACKAGES"]
   },
   "experiments": {
     "typedRoutes": true

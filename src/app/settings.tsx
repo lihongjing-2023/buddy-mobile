@@ -20,7 +20,8 @@ import { settingsStorage, type AppSettings } from '@/services/storage';
 import { useAccountStore } from '@/modules/account/account-store';
 import { useTheme, type ThemeMode } from '@/theme';
 import { getAppVersion } from '@/services/app-info';
-import { checkForUpdate } from '@/modules/core/update-service';
+import { checkForUpdate, type UpdateInfo, DEFAULT_API_PROXIES, DEFAULT_DOWNLOAD_PROXIES } from '@/modules/core/update-service';
+import { UpdateModal } from '@/components/UpdateModal';
 
 const REFRESH_OPTIONS = [
   { label: '关闭', value: 0 },
@@ -43,6 +44,8 @@ export default function SettingsPage() {
     autoRefreshIntervalMinutes: 60,
     backgroundCheckinEnabled: false,
     backgroundCheckinHour: 9,
+    apiMirrors: [],
+    downloadMirrors: [],
   });
 
   useEffect(() => {
@@ -98,23 +101,16 @@ export default function SettingsPage() {
   };
 
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
 
   const handleCheckUpdate = async () => {
     setIsCheckingUpdate(true);
     try {
       const info = await checkForUpdate();
       if (info.hasUpdate) {
-        Alert.alert(
-          '发现新版本',
-          `v${info.latestVersion} 已发布${info.publishedAt ? ` (${new Date(info.publishedAt).toLocaleDateString()})` : ''}\n\n${info.body || '暂无更新说明'}`,
-          [
-            { text: '稍后再说', style: 'cancel' },
-            {
-              text: '前往下载',
-              onPress: () => Linking.openURL(info.htmlUrl),
-            },
-          ]
-        );
+        setUpdateInfo(info);
+        setShowUpdateModal(true);
       } else {
         Alert.alert('已是最新版本', `当前版本 v${getAppVersion()}，无需更新`);
       }
@@ -123,6 +119,64 @@ export default function SettingsPage() {
     } finally {
       setIsCheckingUpdate(false);
     }
+  };
+
+  // ==================== 镜像配置 ====================
+  const [showMirrorConfig, setShowMirrorConfig] = useState(false);
+  const [newApiMirror, setNewApiMirror] = useState('');
+  const [newDlMirror, setNewDlMirror] = useState('');
+
+  const activeApiMirrors = settings.apiMirrors.length > 0 ? settings.apiMirrors : [...DEFAULT_API_PROXIES];
+  const activeDlMirrors = settings.downloadMirrors.length > 0 ? settings.downloadMirrors : [...DEFAULT_DOWNLOAD_PROXIES];
+  const isUsingDefaultApi = settings.apiMirrors.length === 0;
+  const isUsingDefaultDl = settings.downloadMirrors.length === 0;
+
+  /** 添加 API 镜像 */
+  const handleAddApiMirror = () => {
+    const url = newApiMirror.trim();
+    if (!url) return;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      Alert.alert('提示', '镜像地址必须以 http:// 或 https:// 开头');
+      return;
+    }
+    const next = isUsingDefaultApi ? [...DEFAULT_API_PROXIES, url] : [...settings.apiMirrors, url];
+    updateSetting({ apiMirrors: next });
+    setNewApiMirror('');
+  };
+
+  /** 移除 API 镜像 */
+  const handleRemoveApiMirror = (url: string) => {
+    const next = activeApiMirrors.filter((m) => m !== url);
+    updateSetting({ apiMirrors: next });
+  };
+
+  /** 重置 API 镜像为默认 */
+  const handleResetApiMirrors = () => {
+    updateSetting({ apiMirrors: [] });
+  };
+
+  /** 添加下载镜像 */
+  const handleAddDlMirror = () => {
+    const url = newDlMirror.trim();
+    if (!url) return;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      Alert.alert('提示', '镜像地址必须以 http:// 或 https:// 开头');
+      return;
+    }
+    const next = isUsingDefaultDl ? [...DEFAULT_DOWNLOAD_PROXIES, url] : [...settings.downloadMirrors, url];
+    updateSetting({ downloadMirrors: next });
+    setNewDlMirror('');
+  };
+
+  /** 移除下载镜像 */
+  const handleRemoveDlMirror = (url: string) => {
+    const next = activeDlMirrors.filter((m) => m !== url);
+    updateSetting({ downloadMirrors: next });
+  };
+
+  /** 重置下载镜像为默认 */
+  const handleResetDlMirrors = () => {
+    updateSetting({ downloadMirrors: [] });
   };
 
   return (
@@ -290,6 +344,122 @@ export default function SettingsPage() {
         </View>
       </View>
 
+      {/* 镜像加速配置 */}
+      <View style={styles.section}>
+        <TouchableOpacity
+          style={[styles.mirrorHeader, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
+          onPress={() => setShowMirrorConfig(!showMirrorConfig)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.settingLeft}>
+            <Ionicons name="server-outline" size={20} color={colors.primary} />
+            <View>
+              <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>镜像加速配置</Text>
+              <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
+                配置 GitHub 代理镜像，加速检查更新与 APK 下载
+              </Text>
+            </View>
+          </View>
+          <Ionicons
+            name={showMirrorConfig ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={colors.textSecondary}
+          />
+        </TouchableOpacity>
+
+        {showMirrorConfig && (
+          <View style={styles.mirrorBody}>
+            {/* API 查询镜像 */}
+            <Text style={[styles.mirrorSubTitle, { color: colors.textPrimary }]}>
+              API 查询镜像
+              {isUsingDefaultApi && <Text style={{ color: colors.textSecondary, fontWeight: '400' }}> (默认)</Text>}
+            </Text>
+            <Text style={[styles.mirrorSubDesc, { color: colors.textSecondary }]}>
+              用于检查更新时加速访问 GitHub API
+            </Text>
+
+            {activeApiMirrors.map((url, i) => (
+              <View key={`api-${i}`} style={[styles.mirrorItem, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+                <Text style={[styles.mirrorUrl, { color: colors.textPrimary }]} numberOfLines={1}>
+                  {url}
+                </Text>
+                <TouchableOpacity onPress={() => handleRemoveApiMirror(url)} style={styles.mirrorRemoveBtn}>
+                  <Ionicons name="close-circle" size={18} color="#FF3B30" />
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            <View style={[styles.mirrorAddRow, { borderColor: colors.border }]}>
+              <TextInput
+                style={[styles.mirrorInput, { backgroundColor: colors.bgNested, color: colors.textPrimary, borderColor: colors.border }]}
+                placeholder="https://your-mirror.com"
+                placeholderTextColor={colors.textSecondary}
+                value={newApiMirror}
+                onChangeText={setNewApiMirror}
+                onSubmitEditing={handleAddApiMirror}
+                returnKeyType="done"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+              />
+              <TouchableOpacity style={[styles.mirrorAddBtn, { backgroundColor: colors.primary }]} onPress={handleAddApiMirror}>
+                <Ionicons name="add" size={18} color={colors.textOnPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            {!isUsingDefaultApi && (
+              <TouchableOpacity onPress={handleResetApiMirrors} style={styles.resetBtn}>
+                <Text style={[styles.resetText, { color: colors.textSecondary }]}>重置为默认</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* 下载镜像 */}
+            <Text style={[styles.mirrorSubTitle, { color: colors.textPrimary, marginTop: 16 }]}>
+              下载加速镜像
+              {isUsingDefaultDl && <Text style={{ color: colors.textSecondary, fontWeight: '400' }}> (默认)</Text>}
+            </Text>
+            <Text style={[styles.mirrorSubDesc, { color: colors.textSecondary }]}>
+              用于加速下载 APK 安装包
+            </Text>
+
+            {activeDlMirrors.map((url, i) => (
+              <View key={`dl-${i}`} style={[styles.mirrorItem, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+                <Text style={[styles.mirrorUrl, { color: colors.textPrimary }]} numberOfLines={1}>
+                  {url}
+                </Text>
+                <TouchableOpacity onPress={() => handleRemoveDlMirror(url)} style={styles.mirrorRemoveBtn}>
+                  <Ionicons name="close-circle" size={18} color="#FF3B30" />
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            <View style={[styles.mirrorAddRow, { borderColor: colors.border }]}>
+              <TextInput
+                style={[styles.mirrorInput, { backgroundColor: colors.bgNested, color: colors.textPrimary, borderColor: colors.border }]}
+                placeholder="https://your-mirror.com"
+                placeholderTextColor={colors.textSecondary}
+                value={newDlMirror}
+                onChangeText={setNewDlMirror}
+                onSubmitEditing={handleAddDlMirror}
+                returnKeyType="done"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+              />
+              <TouchableOpacity style={[styles.mirrorAddBtn, { backgroundColor: colors.primary }]} onPress={handleAddDlMirror}>
+                <Ionicons name="add" size={18} color={colors.textOnPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            {!isUsingDefaultDl && (
+              <TouchableOpacity onPress={handleResetDlMirrors} style={styles.resetBtn}>
+                <Text style={[styles.resetText, { color: colors.textSecondary }]}>重置为默认</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
+
       {/* 数据管理 */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>数据管理</Text>
@@ -369,6 +539,13 @@ export default function SettingsPage() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* 更新弹窗 */}
+      <UpdateModal
+        visible={showUpdateModal}
+        updateInfo={updateInfo}
+        onClose={() => setShowUpdateModal(false)}
+      />
     </ScrollView>
   );
 }
@@ -569,5 +746,77 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     marginTop: 4,
+  },
+  // 镜像配置
+  mirrorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+  },
+  mirrorBody: {
+    marginTop: 8,
+  },
+  mirrorSubTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  mirrorSubDesc: {
+    fontSize: 11,
+    marginBottom: 8,
+  },
+  mirrorItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    marginBottom: 6,
+    gap: 8,
+  },
+  mirrorUrl: {
+    fontSize: 12,
+    fontFamily: 'monospace',
+    flex: 1,
+  },
+  mirrorRemoveBtn: {
+    padding: 2,
+  },
+  mirrorAddRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    marginTop: 4,
+    gap: 6,
+    paddingRight: 6,
+  },
+  mirrorInput: {
+    flex: 1,
+    height: 38,
+    paddingHorizontal: 10,
+    fontSize: 13,
+    borderRadius: 6,
+    borderWidth: 0,
+  },
+  mirrorAddBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resetBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    marginTop: 4,
+  },
+  resetText: {
+    fontSize: 12,
+    textDecorationLine: 'underline',
   },
 });
