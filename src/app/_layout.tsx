@@ -89,6 +89,10 @@ function RootLayoutInner() {
             name="account/import"
             options={{ title: '导入账号' }}
           />
+          <Stack.Screen
+            name="checkin-export"
+            options={{ title: '导出签到脚本' }}
+          />
           <Stack.Screen name="dashboard" options={{ title: '仪表盘' }} />
           <Stack.Screen name="settings" options={{ title: '设置' }} />
         </Stack>
