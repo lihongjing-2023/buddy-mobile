@@ -245,6 +245,12 @@ export default function HomePage() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.iconButton}
+            onPress={() => router.push('/checkin-export')}
+          >
+            <Ionicons name="document-text-outline" size={22} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconButton}
             onPress={handleImport}
           >
             <Ionicons name="arrow-down-outline" size={22} color={colors.textSecondary} />
