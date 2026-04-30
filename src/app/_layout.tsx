@@ -20,7 +20,7 @@ function TabBar() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
 
-  const tabs: { path: Href; icon: string; activeIcon: string; label: string }[] = [
+  const tabs: { path: Href; icon: React.ComponentProps<typeof Ionicons>['name']; activeIcon: React.ComponentProps<typeof Ionicons>['name']; label: string }[] = [
     { path: '/', icon: 'home-outline', activeIcon: 'home', label: '首页' },
     { path: '/dashboard', icon: 'analytics-outline', activeIcon: 'analytics', label: '仪表盘' },
     { path: '/settings', icon: 'settings-outline', activeIcon: 'settings', label: '设置' },
@@ -37,7 +37,7 @@ function TabBar() {
             onPress={() => router.replace(tab.path)}
           >
             <Ionicons
-              name={isActive ? tab.activeIcon as any : tab.icon as any}
+              name={isActive ? tab.activeIcon : tab.icon}
               size={22}
               color={isActive ? colors.primary : colors.tabInactive}
             />

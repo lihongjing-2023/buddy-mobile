@@ -207,10 +207,8 @@ export interface ApiResponse<T = unknown> {
   traceId?: string;
 }
 
-/** Token 刷新请求参数 */
-export interface TokenRefreshRequest {
-  /* 空 body，token 在 header 中传递 */
-}
+/** Token 刷新请求参数（token 在 header 中传递，body 为空） */
+export type TokenRefreshRequest = Record<string, never>;
 
 /** Token 刷新响应 data */
 export interface TokenRefreshData {

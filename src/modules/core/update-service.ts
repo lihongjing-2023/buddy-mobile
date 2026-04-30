@@ -144,7 +144,7 @@ function fetchWithTimeout(url: string, timeoutMs: number, init?: RequestInit): P
  * 尝试通过代理或直连获取 GitHub Release 数据
  * 依次尝试：国内代理 → 直连 GitHub API
  */
-async function fetchLatestRelease(): Promise<any> {
+async function fetchLatestRelease(): Promise<Record<string, unknown>> {
   const apiPath = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
   const mirrors = await getApiMirrors();
 
@@ -186,8 +186,8 @@ export function getDeviceAbi(): string {
   if (Platform.OS !== 'android') return '';
 
   // React Native 0.71+ 在 Android 上提供 supportedAbis
-  const constants = Platform.constants as Record<string, any>;
-  const supportedAbis: string[] | undefined = constants?.supportedAbis;
+  const constants = Platform.constants as Record<string, unknown>;
+  const supportedAbis = constants?.supportedAbis as string[] | undefined;
 
   if (supportedAbis && supportedAbis.length > 0) {
     // 返回优先级最高的 ABI
@@ -266,9 +266,9 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
   return {
     latestVersion,
     hasUpdate: compareVersions(latestVersion, currentVersion) > 0,
-    htmlUrl: data.html_url,
-    publishedAt: data.published_at,
-    body: data.body || '',
+    htmlUrl: data.html_url as string,
+    publishedAt: data.published_at as string,
+    body: (data.body as string) || '',
     downloadAssets,
     deviceAbi,
     recommendedAsset,

@@ -86,12 +86,12 @@ export const quotaHistoryStorage = {
 
 /** 获取追加锁 */
 async function acquireLock(): Promise<() => void> {
-  let release: () => void;
+  let release: (() => void) | undefined;
   const newLock = new Promise<void>((resolve) => {
     release = resolve;
   });
   const prevLock = appendLock;
   appendLock = prevLock.then(() => newLock);
   await prevLock;
-  return release!;
+  return release as () => void;
 }

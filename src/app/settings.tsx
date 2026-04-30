@@ -31,7 +31,7 @@ const REFRESH_OPTIONS = [
   { label: '6 小时', value: 360 },
 ];
 
-const THEME_OPTIONS: { label: string; value: ThemeMode; icon: string }[] = [
+const THEME_OPTIONS: { label: string; value: ThemeMode; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
   { label: '浅色', value: 'light', icon: 'sunny-outline' },
   { label: '深色', value: 'dark', icon: 'moon-outline' },
 ];
@@ -114,8 +114,9 @@ export default function SettingsPage() {
       } else {
         Alert.alert('已是最新版本', `当前版本 v${getAppVersion()}，无需更新`);
       }
-    } catch (e: any) {
-      Alert.alert('检查失败', `无法获取更新信息：${e.message || '网络错误'}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '网络错误';
+      Alert.alert('检查失败', `无法获取更新信息：${msg}`);
     } finally {
       setIsCheckingUpdate(false);
     }
@@ -197,7 +198,7 @@ export default function SettingsPage() {
               onPress={() => setMode(opt.value)}
             >
               <Ionicons
-                name={opt.icon as any}
+                name={opt.icon}
                 size={22}
                 color={mode === opt.value ? colors.primary : colors.textSecondary}
               />

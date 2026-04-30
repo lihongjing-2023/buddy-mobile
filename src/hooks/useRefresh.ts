@@ -49,6 +49,7 @@ export function useRefresh() {
           refresh_token: secureRt || account.refresh_token,
         };
 
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- ref 在上方 if 块中已确保初始化
         const { updatedAccount, quotaRaw } = await serviceRef.current!.refreshAccount(freshAccount);
 
         // 配额刷新完成后，并行获取签到状态（失败不影响主流程）
