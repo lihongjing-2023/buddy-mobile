@@ -9,6 +9,11 @@ on:
         required: true
         default: true
         type: boolean
+      build_armeabi_v7a:
+        description: 'Build 32-bit APK (armeabi-v7a)'
+        required: true
+        default: true
+        type: boolean
   
   # 定时触发：每天北京时间0点(UTC 16:00)检查前一天是否有更新
   schedule:
@@ -150,18 +155,36 @@ jobs:
       - name: Accept Android licenses
         run: yes | sdkmanager --licenses || true
 
+      - name: Restore Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/notifications
+            ~/.gradle/configuration-cache
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-v1
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
       - name: Prebuild Android project
         run: npx expo prebuild --platform android
 
       - name: Enable ABI split in build.gradle
         working-directory: android
         run: |
-          # 在 android 块末尾注入 splits ABI 拆分配置（不使用 ndk.abiFilters，避免与 splits 冲突）
-          sed -i '/^android {/a\    splits {\n        abi {\n            enable true\n            reset()\n            include "arm64-v8a", "armeabi-v7a"\n            universalApk false\n        }\n    }' app/build.gradle
+          if [ "${{ inputs.build_armeabi_v7a || 'true' }}" = "true" ]; then
+            ABI_INCLUDE='"arm64-v8a", "armeabi-v7a"'
+            echo "Building both arm64-v8a and armeabi-v7a"
+          else
+            ABI_INCLUDE='"arm64-v8a"'
+            echo "Building arm64-v8a only"
+          fi
+          sed -i "/^android {/a\    splits {\n        abi {\n            enable true\n            reset()\n            include ${ABI_INCLUDE}\n            universalApk false\n        }\n    }" app/build.gradle
 
       - name: Build Android APK (split by ABI)
         working-directory: android
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease --build-cache --no-daemon -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC" -Dorg.gradle.parallel=true -Dorg.gradle.caching=true
 
       - name: Rename APKs with version and ABI
         run: |
@@ -183,27 +206,25 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          NOTES="## Android APK Release\n\n### 版本信息\n- 版本号: v${VERSION}\n- 构建时间: ${{ github.event.head_commit.timestamp }}\n- 提交: ${{ github.sha }}\n\n### 下载\n- \`app-arm64-v8a-v${VERSION}.apk\` — 64位设备（推荐，大多数现代手机）"
+          if [ "${{ inputs.build_armeabi_v7a || 'true' }}" = "true" ]; then
+            NOTES="${NOTES}\n- \`app-armeabi-v7a-v${VERSION}.apk\` — 32位设备（老旧手机）"
+          fi
+          NOTES="${NOTES}\n\n### 安装说明\n1. 根据设备架构下载对应的APK文件\n2. 在Android设备上允许\"安装未知来源应用\"\n3. 安装并运行"
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
           name: Release v${{ steps.version.outputs.VERSION }}
-          body: |
-            ## Android APK Release
-            
-            ### 版本信息
-            - 版本号: v${{ steps.version.outputs.VERSION }}
-            - 构建时间: ${{ github.event.head_commit.timestamp }}
-            - 提交: ${{ github.sha }}
-            
-            ### 下载
-            - `app-arm64-v8a-v${{ steps.version.outputs.VERSION }}.apk` — 64位设备（推荐，大多数现代手机）
-            - `app-armeabi-v7a-v${{ steps.version.outputs.VERSION }}.apk` — 32位设备（老旧手机）
-            
-            ### 安装说明
-            1. 根据设备架构下载对应的APK文件
-            2. 在Android设备上允许"安装未知来源应用"
-            3. 安装并运行
+          body: ${{ steps.release_notes.outputs.body }}
           files: release/*.apk
           draft: false
           prerelease: false
