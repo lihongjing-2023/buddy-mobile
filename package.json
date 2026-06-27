@@ -46,7 +46,7 @@
     "@typescript-eslint/parser": "^8.58.2",
     "eslint": "^8.57.1",
     "eslint-config-expo": "~8.0.1",
-    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "husky": "^9.1.7",
     "metro-minify-terser": "^0.84.3",
     "typescript": "~5.8.0"
