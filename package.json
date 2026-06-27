@@ -44,7 +44,7 @@
     "@types/react": "~18.3.12",
     "@typescript-eslint/eslint-plugin": "^8.58.2",
     "@typescript-eslint/parser": "^8.58.2",
-    "eslint": "^8.57.1",
+    "eslint": "^10.2.1",
     "eslint-config-expo": "~8.0.1",
     "eslint-plugin-react-hooks": "^4.6.2",
     "husky": "^9.1.7",
